@@ -728,9 +728,10 @@
         });
 
         function loadSettings() {
-            if (!window.app) return;
+            const appInstance = window.app;
+            if (!appInstance) return;
 
-            const projectInfo = app.projectData.info;
+            const projectInfo = appInstance.projectData.info;
             
             document.getElementById('project-name').value = projectInfo.name || '';
             document.getElementById('client-name').value = projectInfo.client || '';
@@ -759,9 +760,10 @@
         }
 
         function saveProjectInfo() {
-            if (!window.app) return;
+            const appInstance = window.app;
+            if (!appInstance) return;
 
-            const projectInfo = app.projectData.info;
+            const projectInfo = appInstance.projectData.info;
             
             projectInfo.name = document.getElementById('project-name').value;
             projectInfo.client = document.getElementById('client-name').value;
@@ -771,14 +773,15 @@
             projectInfo.startDate = new Date(document.getElementById('start-date').value);
             projectInfo.endDate = new Date(document.getElementById('end-date').value);
 
-            app.debouncedSave();
+            appInstance.debouncedSave();
             showNotification('Project information saved successfully', 'success');
         }
 
         function saveBranding() {
-            if (!window.app) return;
+            const appInstance = window.app;
+            if (!appInstance) return;
 
-            const projectInfo = app.projectData.info;
+            const projectInfo = appInstance.projectData.info;
             
             projectInfo.colors = {
                 primary: document.getElementById('primary-color').value,
@@ -786,7 +789,7 @@
                 accent: document.getElementById('accent-color').value
             };
 
-            app.debouncedSave();
+            appInstance.debouncedSave();
             showNotification('Branding configuration saved successfully', 'success');
         }
 
@@ -818,19 +821,21 @@
                 logoPreview.innerHTML = `<img src="${e.target.result}" alt="Company Logo">`;
                 logoPreview.classList.add('has-logo');
                 
-                if (window.app) {
-                    app.projectData.info.logo = e.target.result;
-                    app.debouncedSave();
+                const appInstance = window.app;
+                if (appInstance) {
+                    appInstance.projectData.info.logo = e.target.result;
+                    appInstance.debouncedSave();
                 }
             };
             reader.readAsDataURL(file);
         }
 
         function exportProjectData() {
-            if (!window.app) return;
+            const appInstance = window.app;
+            if (!appInstance) return;
 
             const data = {
-                projectData: app.projectData,
+                projectData: appInstance.projectData,
                 exportDate: new Date().toISOString(),
                 version: '1.0'
             };
@@ -855,10 +860,13 @@
                     
                     if (data.projectData) {
                         if (confirm('This will replace all current project data. Are you sure?')) {
-                            app.projectData = data.projectData;
-                            app.debouncedSave();
-                            loadSettings();
-                            showNotification('Project data imported successfully', 'success');
+                            const appInstance = window.app;
+                            if (appInstance) {
+                                appInstance.projectData = data.projectData;
+                                appInstance.debouncedSave();
+                                loadSettings();
+                                showNotification('Project data imported successfully', 'success');
+                            }
                         }
                     } else {
                         showNotification('Invalid file format', 'error');
@@ -871,10 +879,11 @@
         }
 
         function createBackup() {
-            if (!window.app) return;
+            const appInstance = window.app;
+            if (!appInstance) return;
 
             const backup = {
-                projectData: app.projectData,
+                projectData: appInstance.projectData,
                 settings: localStorage.getItem('cashflow_settings'),
                 timestamp: new Date().toISOString(),
                 version: '1.0'
@@ -917,8 +926,9 @@
         }
 
         setInterval(() => {
-            if (window.app && document.getElementById('enable-notifications')?.checked) {
-                app.debouncedSave();
+            const appInstance = window.app;
+            if (appInstance && document.getElementById('enable-notifications')?.checked) {
+                appInstance.debouncedSave();
             }
         }, 300000);
     </script>

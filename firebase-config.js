@@ -24,12 +24,15 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-let app, auth, db;
+let auth, db;
 
 try {
-  app = firebase.initializeApp(firebaseConfig);
+  const firebaseApp = firebase.initializeApp(firebaseConfig);
   auth = firebase.auth();
   db = firebase.firestore();
+  if (typeof window !== 'undefined') {
+    window.firebaseApp = firebaseApp;
+  }
   console.log('✅ Firebase initialized successfully');
 } catch (error) {
   console.error('❌ Firebase initialization failed:', error);

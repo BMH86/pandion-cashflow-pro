@@ -319,7 +319,7 @@
                             </div>
                         </div>
                         
-                        <button onclick="app.recalculateBaseline()" class="btn-primary w-full"
+                        <button onclick="window.app.recalculateBaseline()" class="btn-primary w-full"
                                 data-tooltip="Recalculate all projections with current settings">
                             🔄 Recalculate All Projections
                         </button>
@@ -344,11 +344,11 @@
                                 data-tooltip="Configure project settings and preferences">
                             ⚙️ Project Settings
                         </button>
-                        <button onclick="app.exportData()" class="btn-secondary w-full"
+                        <button onclick="window.app.exportData()" class="btn-secondary w-full"
                                 data-tooltip="Export project data as JSON for backup">
                             💾 Export Data
                         </button>
-                        <button onclick="app.importData()" class="btn-secondary w-full"
+                        <button onclick="window.app.importData()" class="btn-secondary w-full"
                                 data-tooltip="Import project data from JSON file">
                             📂 Import Data
                         </button>
@@ -357,7 +357,7 @@
                     <div class="mt-6 pt-6 border-t border-gray-200">
                         <h4 class="font-semibold mb-3">Current Scenario</h4>
                         <select id="scenario-selector" class="w-full p-2 border border-gray-300 rounded-lg" 
-                                onchange="app.switchScenario(this.value)"
+                                onchange="window.app.switchScenario(this.value)"
                                 data-tooltip="Switch between different project scenarios">
                             <option value="baseline">Baseline</option>
                         </select>
@@ -397,17 +397,19 @@
         // ============================================================================
         
         function safeShowAddBudgetModal() {
-            if (window.app && typeof app.showAddBudgetModal === 'function') {
-                app.showAddBudgetModal();
+            const appInstance = window.app;
+            if (appInstance && typeof appInstance.showAddBudgetModal === 'function') {
+                appInstance.showAddBudgetModal();
             } else {
                 console.error('App not ready or function missing');
                 alert('Application is still loading. Please wait a moment and try again.');
             }
         }
-        
+
         function safeShowNewProjectModal() {
-            if (window.app && typeof app.showNewProjectModal === 'function') {
-                app.showNewProjectModal();
+            const appInstance = window.app;
+            if (appInstance && typeof appInstance.showNewProjectModal === 'function') {
+                appInstance.showNewProjectModal();
             } else {
                 console.error('App not ready');
                 alert('Application is still loading. Please wait a moment and try again.');
@@ -416,28 +418,30 @@
         
         // ENHANCED: Delete button with better error handling
         function safeDeleteCurrentProject() {
-            if (!window.app) {
+            const appInstance = window.app;
+            if (!appInstance) {
                 showNotification('Application not ready', 'error');
                 return;
             }
-            
+
             if (!window.authManager || !window.authManager.isSuperAdmin()) {
                 showNotification('Only super admins can delete projects', 'error');
                 return;
             }
-            
-            if (!app.currentProjectId) {
+
+            if (!appInstance.currentProjectId) {
                 showNotification('No project selected. Please select or create a project first.', 'warning');
                 return;
             }
-            
-            app.deleteProject(app.currentProjectId);
+
+            appInstance.deleteProject(appInstance.currentProjectId);
         }
-        
+
         function updateGlobalMethod(method) {
-            if (window.app) {
-                app.projectData.budgetCategories.forEach(category => {
-                    app.updateBudgetCategory(category.id, {
+            const appInstance = window.app;
+            if (appInstance) {
+                appInstance.projectData.budgetCategories.forEach(category => {
+                    appInstance.updateBudgetCategory(category.id, {
                         distributionMethod: method
                     });
                 });
@@ -488,11 +492,12 @@
 
             // FIXED: Enhanced chart initialization with better safety checks
             setTimeout(() => {
-                if (window.app && 
-                    app.projectData && 
-                    app.projectData.budgetCategories && 
-                    app.projectData.budgetCategories.length > 0) {
-                    app.visualization.renderCashflowChart('cashflow-chart', app.projectData);
+                const appInstance = window.app;
+                if (appInstance &&
+                    appInstance.projectData &&
+                    appInstance.projectData.budgetCategories &&
+                    appInstance.projectData.budgetCategories.length > 0) {
+                    appInstance.visualization.renderCashflowChart('cashflow-chart', appInstance.projectData);
                 } else {
                     console.log('Chart not rendered - no budget categories or app not ready');
                 }
