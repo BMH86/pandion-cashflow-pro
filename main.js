@@ -199,7 +199,8 @@ class CashflowApp {
                     name: 'Baseline',
                     projections: {},
                     actuals: {},
-                    isLocked: false
+                    isLocked: false,
+                    adjustments: {}
                 }
             },
             currentScenario: 'baseline'
@@ -460,11 +461,19 @@ class CashflowApp {
     async loadCurrentProject() {
         console.log('Loading current project data...');
         try {
+            if (this.projectData?.scenarios) {
+                Object.values(this.projectData.scenarios).forEach(scenario => {
+                    if (scenario && typeof scenario === 'object' && !scenario.adjustments) {
+                        scenario.adjustments = {};
+                    }
+                });
+            }
+
             this.renderBudgetTable();
             this.updateProjectSummary();
             this.updateProjectInfo();
             this.loadScenarios();
-            
+
             console.log('Current project loaded');
         } catch (error) {
             console.error('Error loading current project:', error);
@@ -721,6 +730,9 @@ class CashflowApp {
                 if (!scenario.projections[categoryId]) {
                     scenario.projections[categoryId] = {};
                 }
+                if (scenario.adjustments && scenario.adjustments[categoryId] === undefined) {
+                    scenario.adjustments[categoryId] = category.amount;
+                }
 
                 const projections = this.calculations.calculateDistribution(
                     category.amount,
@@ -807,7 +819,8 @@ class CashflowApp {
                 name: name,
                 projections: JSON.parse(JSON.stringify(baseScenario.projections)),
                 actuals: JSON.parse(JSON.stringify(baseScenario.actuals)),
-                isLocked: false
+                isLocked: false,
+                adjustments: JSON.parse(JSON.stringify(baseScenario.adjustments || {}))
             };
             
             this.debouncedSave();

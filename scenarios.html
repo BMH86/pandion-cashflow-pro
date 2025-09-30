@@ -756,6 +756,7 @@
 
             // Update comparison selector
             updateComparisonSelector();
+            updateComparison();
         }
 
         function loadBudgetAdjustments() {
@@ -765,20 +766,91 @@
 
             container.innerHTML = '';
 
+            const scenario = appInstance.projectData.scenarios[currentScenarioId];
+            if (scenario && !scenario.adjustments) {
+                scenario.adjustments = {};
+            }
+
             appInstance.projectData.budgetCategories.forEach(category => {
+                const scenarioAmount = scenario?.adjustments?.[category.id] ?? category.amount;
                 const adjustmentItem = document.createElement('div');
                 adjustmentItem.className = 'adjustment-item';
                 adjustmentItem.innerHTML = `
                     <div class="category-name">${category.name}</div>
-                    <input type="number" 
-                           class="adjustment-input" 
+                    <input type="number"
+                           class="adjustment-input"
                            data-category-id="${category.id}"
-                           value="${category.amount}"
+                           value="${scenarioAmount}"
                            step="0.01">
-                    <span>$${category.amount.toLocaleString()}</span>
+                    <span class="adjustment-display">$${formatCurrency(scenarioAmount)}</span>
                 `;
                 container.appendChild(adjustmentItem);
+
+                const input = adjustmentItem.querySelector('.adjustment-input');
+                attachAdjustmentListeners(input);
             });
+        }
+
+        function attachAdjustmentListeners(input) {
+            if (!input) return;
+            ['input', 'change'].forEach(eventName => {
+                input.addEventListener(eventName, handleAdjustmentChange);
+            });
+        }
+
+        function handleAdjustmentChange(event) {
+            const input = event.target;
+            const categoryId = parseInt(input.dataset.categoryId, 10);
+            const appInstance = window.app;
+            if (!appInstance || Number.isNaN(categoryId)) {
+                return;
+            }
+
+            const scenario = appInstance.projectData.scenarios[currentScenarioId];
+            if (!scenario) {
+                return;
+            }
+
+            if (!scenario.adjustments) {
+                scenario.adjustments = {};
+            }
+            if (!scenario.projections) {
+                scenario.projections = {};
+            }
+
+            const rawValue = parseFloat(input.value);
+            const newAmount = Number.isFinite(rawValue) ? rawValue : 0;
+            scenario.adjustments[categoryId] = newAmount;
+
+            const category = appInstance.projectData.budgetCategories.find(cat => cat.id === categoryId);
+            if (category) {
+                const projections = appInstance.calculations.calculateDistribution(
+                    newAmount,
+                    category.distributionMethod,
+                    category.distributionParams,
+                    24
+                );
+                scenario.projections[categoryId] = projections;
+            }
+
+            const displayEl = input.parentElement.querySelector('.adjustment-display');
+            if (displayEl) {
+                displayEl.textContent = `$${formatCurrency(newAmount)}`;
+            }
+
+            if (typeof appInstance.debouncedSave === 'function') {
+                appInstance.debouncedSave();
+            } else if (typeof appInstance.saveCurrentProject === 'function') {
+                appInstance.saveCurrentProject();
+            }
+
+            updateScenarioChart();
+            updateComparison();
+        }
+
+        function formatCurrency(value) {
+            const amount = Number.isFinite(value) ? value : 0;
+            return amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
         function refreshScenarioList() {
@@ -845,16 +917,16 @@
             if (!tbody) return;
 
             tbody.innerHTML = '';
-            
+
             let totalCurrent = 0;
             let totalCompare = 0;
-            
+
             appInstance.projectData.budgetCategories.forEach(category => {
-                const currentAmount = category.amount;
-                const compareAmount = category.amount;
+                const currentAmount = currentScenario.adjustments?.[category.id] ?? category.amount;
+                const compareAmount = compareScenario.adjustments?.[category.id] ?? category.amount;
                 const variance = compareAmount - currentAmount;
                 const variancePercent = currentAmount > 0 ? (variance / currentAmount * 100).toFixed(1) : 0;
-                
+
                 totalCurrent += currentAmount;
                 totalCompare += compareAmount;
                 
