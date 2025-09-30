@@ -1,7 +1,7 @@
 // ============================================================================
-// CASHFLOW PRO - MAIN APPLICATION
+// CASHFLOW PRO - MAIN APPLICATION - FIXED & ENHANCED
 // Pandion Development Management Services
-// Version: 1.0.0
+// Version: 1.1.0 - QC Fixes Applied
 // ============================================================================
 
 // ============================================================================
@@ -71,6 +71,21 @@ function getNotificationIcon(type) {
     return icons[type] || icons.info;
 }
 
+// NEW: Button loading state utility
+function setButtonLoading(button, isLoading) {
+    if (!button) return;
+    
+    if (isLoading) {
+        button.dataset.originalText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<span class="loading-spinner"></span> Loading...';
+    } else {
+        button.disabled = false;
+        button.innerHTML = button.dataset.originalText || button.innerHTML;
+    }
+}
+
+// ENHANCED: Budget category validation
 function validateBudgetCategory(data) {
     const errors = [];
     
@@ -92,6 +107,25 @@ function validateBudgetCategory(data) {
     
     if (!['s-curve', 'straight-line', 'manual'].includes(data.distributionMethod)) {
         errors.push('Invalid distribution method');
+    }
+    
+    return errors;
+}
+
+// NEW: Project info validation
+function validateProjectInfo(data) {
+    const errors = [];
+    
+    if (!data.name || data.name.trim() === '') {
+        errors.push('Project name is required');
+    }
+    
+    if (data.startDate && data.endDate) {
+        const start = new Date(data.startDate);
+        const end = new Date(data.endDate);
+        if (end < start) {
+            errors.push('End date must be after start date');
+        }
     }
     
     return errors;
@@ -190,6 +224,7 @@ class CashflowApp {
         }
     }
 
+    // ENHANCED: Better first-time user experience
     async loadProjects() {
         console.log('Loading projects from Firebase...');
         showLoading('Loading projects...');
@@ -207,7 +242,20 @@ class CashflowApp {
                 } else if (Object.keys(this.projects).length > 0) {
                     await this.loadProject(Object.keys(this.projects)[0]);
                 } else {
-                    this.showProjectCreationDialog();
+                    // No projects exist - offer to create one
+                    hideLoading();
+                    const createProject = confirm(
+                        'Welcome to Cashflow Pro! You don\'t have any projects yet. ' +
+                        'Would you like to create your first project now?'
+                    );
+                    
+                    if (createProject) {
+                        this.showProjectCreationDialog();
+                    } else {
+                        // Show empty state
+                        this.showEmptyState();
+                    }
+                    return; // Exit early to prevent further loading
                 }
                 
                 this.updateProjectSelector();
@@ -224,9 +272,31 @@ class CashflowApp {
         }
     }
 
+    // NEW: Empty state display
+    showEmptyState() {
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+            mainContent.innerHTML = `
+                <div style="text-align: center; padding: 4rem 2rem;">
+                    <div style="font-size: 64px; margin-bottom: 1rem;">📊</div>
+                    <h2 style="font-size: 24px; margin-bottom: 1rem; color: var(--pdn-sky);">
+                        No Projects Yet
+                    </h2>
+                    <p style="color: var(--medium-gray); margin-bottom: 2rem;">
+                        Get started by creating your first construction project.
+                    </p>
+                    <button onclick="app.showProjectCreationDialog()" class="btn-primary">
+                        + Create Your First Project
+                    </button>
+                </div>
+            `;
+        }
+    }
+
     async createNewProject(projectName) {
         console.log(`Creating new project: ${projectName}`);
-        showLoading('Creating project...');
+        const button = document.querySelector('[onclick*="createNewProject"]');
+        setButtonLoading(button, true);
         
         try {
             if (!projectName || projectName.trim() === '') {
@@ -254,7 +324,6 @@ class CashflowApp {
                 this.updateProjectSelector();
                 await this.loadCurrentProject();
                 
-                hideLoading();
                 showNotification('Project created successfully', 'success');
                 return projectId;
             } else {
@@ -262,9 +331,10 @@ class CashflowApp {
             }
         } catch (error) {
             console.error('Error creating project:', error);
-            hideLoading();
             showNotification('Failed to create project: ' + error.message, 'error');
             return null;
+        } finally {
+            setButtonLoading(button, false);
         }
     }
 
@@ -592,7 +662,7 @@ class CashflowApp {
                                 </div>
                                 <div class="form-group">
                                     <label>Duration (months)</label>
-                                    <input type="number" name="duration" value="${category.distributionParams.duration || 12}" min="1" max="24">
+                                    <input type="number" name="duration" value="${category.distributionParams.duration || 12}" min="1">
                                 </div>
                             </div>
                             <div class="form-actions">
@@ -604,6 +674,15 @@ class CashflowApp {
                 </div>
             `;
             modal.style.display = 'block';
+            
+            // Add keyboard support
+            document.addEventListener('keydown', this.handleModalKeyboard);
+            
+            // Focus first input
+            setTimeout(() => {
+                const firstInput = modal.querySelector('input, select, textarea');
+                if (firstInput) firstInput.focus();
+            }, 100);
             
             document.getElementById('edit-budget-form').addEventListener('submit', (e) => {
                 e.preventDefault();
@@ -944,6 +1023,15 @@ class CashflowApp {
         `;
         modal.style.display = 'block';
         
+        // Add keyboard support
+        document.addEventListener('keydown', this.handleModalKeyboard);
+        
+        // Focus input
+        setTimeout(() => {
+            const input = modal.querySelector('input[name="projectName"]');
+            if (input) input.focus();
+        }, 100);
+        
         document.getElementById('create-project-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const projectName = e.target.projectName.value;
@@ -1037,7 +1125,7 @@ class CashflowApp {
                                 </div>
                                 <div class="form-group">
                                     <label>Duration (months)</label>
-                                    <input type="number" name="duration" min="1" max="24" value="12">
+                                    <input type="number" name="duration" min="1" value="12">
                                 </div>
                             </div>
                         </div>
@@ -1055,6 +1143,15 @@ class CashflowApp {
             </div>
         `;
         modal.style.display = 'block';
+        
+        // Add keyboard support
+        document.addEventListener('keydown', this.handleModalKeyboard);
+        
+        // Focus first input
+        setTimeout(() => {
+            const firstInput = modal.querySelector('input, select, textarea');
+            if (firstInput) firstInput.focus();
+        }, 100);
         
         document.getElementById('add-budget-form').addEventListener('submit', (e) => {
             e.preventDefault();
@@ -1087,11 +1184,20 @@ class CashflowApp {
         this.closeModal();
     }
 
+    // ENHANCED: Keyboard support for modals
+    handleModalKeyboard = (e) => {
+        if (e.key === 'Escape') {
+            this.closeModal();
+        }
+    }
+
     closeModal() {
         const modal = document.getElementById('modal-container');
         if (modal) {
             modal.style.display = 'none';
             modal.innerHTML = '';
+            // Remove keyboard listener
+            document.removeEventListener('keydown', this.handleModalKeyboard);
         }
     }
 
@@ -1204,6 +1310,7 @@ class CashflowApp {
         });
     }
 
+    // FIXED: Tooltip positioning near cursor
     addTooltip(element) {
         const tooltip = element.getAttribute('data-tooltip');
         if (!tooltip) return;
@@ -1213,7 +1320,7 @@ class CashflowApp {
             element.removeEventListener('mouseleave', element._tooltipLeave);
         }
         
-        element._tooltipEnter = () => {
+        element._tooltipEnter = (e) => {
             const existing = document.getElementById('active-tooltip');
             if (existing) existing.remove();
             
@@ -1224,10 +1331,26 @@ class CashflowApp {
             
             document.body.appendChild(tooltipEl);
             
-            const rect = element.getBoundingClientRect();
-            tooltipEl.style.top = (rect.bottom + window.scrollY + 5) + 'px';
-            tooltipEl.style.left = (rect.left + rect.width / 2) + 'px';
-            tooltipEl.style.transform = 'translateX(-50%)';
+            // Position near cursor instead of element
+            const mouseX = e.clientX;
+            const mouseY = e.clientY;
+            
+            // Offset slightly below and to the right of cursor
+            tooltipEl.style.position = 'fixed';
+            tooltipEl.style.left = (mouseX + 12) + 'px';
+            tooltipEl.style.top = (mouseY + 12) + 'px';
+            tooltipEl.style.transform = 'none';
+            
+            // Ensure tooltip doesn't go off-screen
+            setTimeout(() => {
+                const rect = tooltipEl.getBoundingClientRect();
+                if (rect.right > window.innerWidth) {
+                    tooltipEl.style.left = (mouseX - rect.width - 12) + 'px';
+                }
+                if (rect.bottom > window.innerHeight) {
+                    tooltipEl.style.top = (mouseY - rect.height - 12) + 'px';
+                }
+            }, 0);
             
             setTimeout(() => tooltipEl.classList.add('show'), 10);
         };
@@ -1315,7 +1438,7 @@ class CalculationEngine {
 }
 
 // ============================================================================
-// VISUALIZATION ENGINE
+// VISUALIZATION ENGINE - ENHANCED ERROR HANDLING
 // ============================================================================
 
 class VisualizationEngine {
@@ -1323,11 +1446,28 @@ class VisualizationEngine {
         this.app = app;
     }
 
+    // ENHANCED: Robust chart rendering with validation
     renderCashflowChart(containerId, data, options = {}) {
         try {
             const container = document.getElementById(containerId);
             if (!container) {
-                throw new Error(`Container not found: ${containerId}`);
+                console.error(`Container not found: ${containerId}`);
+                return;
+            }
+
+            // Validate data structure
+            if (!data || !data.budgetCategories || !data.scenarios) {
+                console.warn('Invalid data structure for chart rendering');
+                container.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--medium-gray);">
+                        <div style="text-align: center;">
+                            <p style="font-size: 48px; margin-bottom: 1rem;">📊</p>
+                            <p>No data available for chart</p>
+                            <p style="font-size: 14px; margin-top: 0.5rem;">Add budget categories to see your cashflow projection</p>
+                        </div>
+                    </div>
+                `;
+                return;
             }
 
             if (this.app.chartInstances.has(containerId)) {
