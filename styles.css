@@ -1,10 +1,14 @@
 /* ============================================================================
-   CASHFLOW PRO - COMPLETE STYLES
+   CASHFLOW PRO - COMPLETE STYLES - FIXED & ENHANCED
    Pandion Development Management Services
+   Version: 1.1.0 - QC Fixes Applied
    ============================================================================ */
 
-/* Color Variables */
+/* ============================================================================
+   COLOR VARIABLES - CONSOLIDATED & BRAND COMPLIANT
+   ============================================================================ */
 :root {
+    /* Pandion Brand Colors - Primary Palette */
     --pdn-sky: #1B365D;
     --pdn-blue: #407EC9;
     --pdn-sun: #EAAA00;
@@ -12,6 +16,12 @@
     --pdn-feather: #774212;
     --pdn-ink: #002F6C;
     
+    /* Semantic Aliases - Use these for consistency */
+    --primary-color: var(--pdn-sky);
+    --secondary-color: var(--pdn-blue);
+    --accent-color: var(--pdn-sun);
+    
+    /* Utility Colors */
     --success-color: #27AE60;
     --warning-color: #F39C12;
     --error-color: #E74C3C;
@@ -19,6 +29,7 @@
     --medium-gray: #95A5A6;
     --dark-gray: #34495E;
     
+    /* Typography */
     --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-heading: 'Montserrat', 'Poppins', sans-serif;
 }
@@ -44,6 +55,23 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+}
+
+/* Accessibility - Skip to Main Content */
+.skip-to-main {
+    position: absolute;
+    left: -9999px;
+    z-index: 999;
+    padding: 1em;
+    background-color: var(--primary-color);
+    color: white;
+    text-decoration: none;
+}
+
+.skip-to-main:focus {
+    left: 50%;
+    transform: translateX(-50%);
+    top: 0;
 }
 
 /* ============================================================================
@@ -320,10 +348,16 @@ body {
     color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
     background: #2a6cb3;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(64, 126, 201, 0.3);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .btn-secondary {
@@ -332,9 +366,14 @@ body {
     border: 2px solid var(--pdn-blue);
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
     background: var(--pdn-blue);
     color: white;
+}
+
+.btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .btn-small {
@@ -458,6 +497,17 @@ body {
     animation: spin 0.8s linear infinite;
 }
 
+/* Loading Spinner for Buttons */
+.loading-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
@@ -531,7 +581,7 @@ body {
 }
 
 /* ============================================================================
-   TOOLTIPS
+   TOOLTIPS - FIXED POSITIONING
    ============================================================================ */
 
 .tooltip {
