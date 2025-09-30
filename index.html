@@ -419,12 +419,41 @@
         // ENHANCED: Delete button with better error handling
         function safeDeleteCurrentProject() {
             const appInstance = window.app;
+            const authManager = window.authManager;
+            const deleteBtn = document.getElementById('delete-project-btn');
+
             if (!appInstance) {
                 showNotification('Application not ready', 'error');
                 return;
             }
 
-            if (!window.authManager || !window.authManager.isSuperAdmin()) {
+            if (!authManager) {
+                showNotification('Authentication is still initializing. Please try again in a moment.', 'warning');
+                return;
+            }
+
+            if (!authManager.hasResolvedAuthState || authManager.isRoleLoading) {
+                if (deleteBtn) {
+                    setButtonLoading(deleteBtn, true);
+                }
+
+                showNotification('Confirming delete permissions. Please wait...', 'info', 2500);
+
+                authManager.waitForRoleLoaded().then(() => {
+                    if (deleteBtn) {
+                        setButtonLoading(deleteBtn, false);
+                    }
+                    safeDeleteCurrentProject();
+                }).catch(() => {
+                    if (deleteBtn) {
+                        setButtonLoading(deleteBtn, false);
+                    }
+                    showNotification('Unable to confirm permissions. Please try again.', 'error');
+                });
+                return;
+            }
+
+            if (!authManager.isSuperAdmin()) {
                 showNotification('Only super admins can delete projects', 'error');
                 return;
             }
@@ -454,19 +483,59 @@
         // ============================================================================
         
         document.addEventListener('DOMContentLoaded', function() {
-            // Display user info
-            if (window.authManager && window.authManager.currentUser) {
-                document.getElementById('user-email').textContent = 
-                    window.authManager.currentUser.email;
-                document.getElementById('user-role').textContent = 
-                    window.authManager.userRole === 'super_admin' ? 'ADMIN' : 'USER';
-                
-                // Show/hide delete button based on role
-                const deleteBtn = document.getElementById('delete-project-btn');
-                if (deleteBtn) {
-                    deleteBtn.style.display = 
-                        window.authManager.isSuperAdmin() ? 'inline-block' : 'none';
+            const deleteBtn = document.getElementById('delete-project-btn');
+            const userEmailEl = document.getElementById('user-email');
+            const userRoleEl = document.getElementById('user-role');
+
+            if (deleteBtn) {
+                deleteBtn.style.display = 'none';
+            }
+
+            if (userEmailEl) {
+                userEmailEl.textContent = 'Loading...';
+            }
+
+            if (userRoleEl) {
+                userRoleEl.textContent = 'Checking role...';
+            }
+
+            function updateUserDisplay(role) {
+                const authManager = window.authManager;
+                const authResolved = authManager?.hasResolvedAuthState;
+
+                if (userEmailEl) {
+                    if (authManager?.currentUser) {
+                        userEmailEl.textContent = authManager.currentUser.email;
+                    } else if (authResolved) {
+                        userEmailEl.textContent = 'Not signed in';
+                    } else {
+                        userEmailEl.textContent = 'Loading...';
+                    }
                 }
+
+                const resolvedRole = role || authManager?.userRole || 'user';
+
+                if (userRoleEl) {
+                    if (authResolved && !authManager?.isRoleLoading) {
+                        userRoleEl.textContent = resolvedRole === 'super_admin'
+                            ? 'ADMIN'
+                            : resolvedRole.toUpperCase();
+                    } else {
+                        userRoleEl.textContent = 'Checking role...';
+                    }
+                }
+
+                if (deleteBtn) {
+                    deleteBtn.style.display = authResolved && resolvedRole === 'super_admin'
+                        ? 'inline-block'
+                        : 'none';
+                }
+            }
+
+            if (window.authManager) {
+                window.authManager.onRoleLoaded((role) => {
+                    updateUserDisplay(role);
+                });
             }
 
             // Animate panels on load

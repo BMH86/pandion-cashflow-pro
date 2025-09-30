@@ -44,16 +44,34 @@ class AuthManager {
     this.currentUser = null;
     this.userRole = null;
     this.onAuthStateChangedCallbacks = [];
-    
+    this.onRoleLoadedCallbacks = [];
+    this.isRoleLoading = false;
+    this.hasResolvedAuthState = false;
+
     // Listen for auth state changes
-    auth.onAuthStateChanged((user) => {
+    auth.onAuthStateChanged(async (user) => {
       this.currentUser = user;
+      this.hasResolvedAuthState = false;
+
       if (user) {
-        this.loadUserRole();
+        this.userRole = null;
+        this.isRoleLoading = true;
+
+        try {
+          await this.loadUserRole();
+        } finally {
+          this.isRoleLoading = false;
+          this.hasResolvedAuthState = true;
+          this.notifyRoleLoaded(this.userRole);
+          this.notifyAuthStateChanged(user);
+        }
       } else {
         this.userRole = null;
+        this.isRoleLoading = false;
+        this.hasResolvedAuthState = true;
+        this.notifyRoleLoaded(null);
+        this.notifyAuthStateChanged(null);
       }
-      this.notifyAuthStateChanged(user);
     });
   }
 
@@ -111,9 +129,43 @@ class AuthManager {
     this.onAuthStateChangedCallbacks.push(callback);
   }
 
+  // Register a callback for when the role has been loaded
+  onRoleLoaded(callback) {
+    this.onRoleLoadedCallbacks.push(callback);
+
+    if (!this.isRoleLoading && this.hasResolvedAuthState) {
+      callback(this.userRole);
+    }
+
+    return () => {
+      this.onRoleLoadedCallbacks = this.onRoleLoadedCallbacks.filter(
+        (cb) => cb !== callback
+      );
+    };
+  }
+
   // Notify all callbacks of auth state change
   notifyAuthStateChanged(user) {
     this.onAuthStateChangedCallbacks.forEach(callback => callback(user));
+  }
+
+  // Notify listeners that role loading has completed
+  notifyRoleLoaded(role) {
+    this.onRoleLoadedCallbacks.forEach(callback => callback(role));
+  }
+
+  // Wait for the role to finish loading
+  waitForRoleLoaded() {
+    if (!this.isRoleLoading && this.hasResolvedAuthState) {
+      return Promise.resolve(this.userRole);
+    }
+
+    return new Promise((resolve) => {
+      const unsubscribe = this.onRoleLoaded((role) => {
+        unsubscribe();
+        resolve(role);
+      });
+    });
   }
 
   // Get user-friendly error messages
