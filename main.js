@@ -784,19 +784,32 @@ class CashflowApp {
         }
     }
 
-    updateActualSpend(categoryId, month, amount) {
-        console.log(`Updating actual spend - Category: ${categoryId}, Month: ${month}, Amount: ${amount}`);
-        
+    updateActualSpend(categoryId, month, amount, scenarioId = this.projectData.currentScenario) {
+        console.log(`Updating actual spend - Category: ${categoryId}, Month: ${month}, Amount: ${amount}, Scenario: ${scenarioId}`);
+
         try {
-            const scenario = this.projectData.scenarios[this.projectData.currentScenario];
+            const targetScenarioId = scenarioId || this.projectData.currentScenario;
+            const scenario = this.projectData.scenarios[targetScenarioId];
+
+            if (!scenario) {
+                throw new Error(`Scenario not found: ${targetScenarioId}`);
+            }
+
+            if (!scenario.actuals) {
+                scenario.actuals = {};
+            }
+
             if (!scenario.actuals[categoryId]) {
                 scenario.actuals[categoryId] = {};
             }
-            
+
             scenario.actuals[categoryId][month] = parseFloat(amount) || 0;
             this.debouncedSave();
-            this.renderBudgetTable();
-            this.updateProjectSummary();
+
+            if (targetScenarioId === this.projectData.currentScenario) {
+                this.renderBudgetTable();
+                this.updateProjectSummary();
+            }
         } catch (error) {
             console.error('Error updating actual spend:', error);
             showNotification('Failed to update actual spend: ' + error.message, 'error');

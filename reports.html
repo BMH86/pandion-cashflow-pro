@@ -431,7 +431,7 @@
                     <div class="chart-controls">
                         <div class="form-group">
                             <label for="scenario-selector">Scenario</label>
-                            <select id="scenario-selector" onchange="updateChart()">
+                            <select id="scenario-selector" onchange="handleScenarioChange()">
                                 <option value="baseline">Baseline</option>
                             </select>
                         </div>
@@ -577,8 +577,9 @@
                 // Load data and update visualizations
                 if (window.app) {
                     loadScenarios();
-                    updateChart();
-                    renderEnhancedDataTable();
+                    const initialScenarioId = document.getElementById('scenario-selector')?.value || window.app.projectData.currentScenario;
+                    updateChart(initialScenarioId);
+                    renderEnhancedDataTable(initialScenarioId);
                 }
 
                 // Animate panels
@@ -613,7 +614,7 @@
             if (!selector) return;
 
             selector.innerHTML = '';
-            
+
             Object.keys(window.app.projectData.scenarios).forEach(scenarioId => {
                 const scenario = window.app.projectData.scenarios[scenarioId];
                 const option = document.createElement('option');
@@ -621,12 +622,23 @@
                 option.textContent = scenario.name;
                 selector.appendChild(option);
             });
+
+            if (window.app.projectData.currentScenario && window.app.projectData.scenarios[window.app.projectData.currentScenario]) {
+                selector.value = window.app.projectData.currentScenario;
+            }
         }
 
-        function updateChart() {
+        function handleScenarioChange() {
+            const scenarioId = document.getElementById('scenario-selector')?.value;
+            renderEnhancedDataTable(scenarioId);
+            updateChart(scenarioId);
+        }
+
+        function updateChart(scenarioIdOverride) {
             if (!mainChart || !window.app || !window.app.projectData) return;
 
-            const scenarioId = document.getElementById('scenario-selector').value;
+            const selector = document.getElementById('scenario-selector');
+            const scenarioId = scenarioIdOverride || selector?.value || window.app.projectData.currentScenario;
             const chartType = document.getElementById('chart-type').value;
             const dateRange = parseInt(document.getElementById('date-range').value);
 
@@ -736,13 +748,14 @@
             mainChart.setOption(option, true);
         }
 
-        function renderEnhancedDataTable() {
+        function renderEnhancedDataTable(scenarioIdOverride) {
             if (!window.app || !window.app.projectData) return;
 
             const tbody = document.querySelector('#monthly-table tbody');
             if (!tbody) return;
 
-            const scenarioId = document.getElementById('scenario-selector').value;
+            const selector = document.getElementById('scenario-selector');
+            const scenarioId = scenarioIdOverride || selector?.value || window.app.projectData.currentScenario;
             const scenario = window.app.projectData.scenarios[scenarioId];
             if (!scenario) return;
 
@@ -866,18 +879,18 @@
             if (!window.app) return;
 
             const scenarioId = document.getElementById('scenario-selector').value;
-            
+
             window.app.projectData.budgetCategories.forEach(category => {
                 const input = document.getElementById(`actual-${category.id}`);
                 if (input) {
                     const value = parseFloat(input.value) || 0;
-                    window.app.updateActualSpend(category.id, month, value);
+                    window.app.updateActualSpend(category.id, month, value, scenarioId);
                 }
             });
 
             closeModal();
-            renderEnhancedDataTable();
-            updateChart();
+            renderEnhancedDataTable(scenarioId);
+            updateChart(scenarioId);
             showNotification('Actuals saved successfully', 'success');
         }
 
@@ -905,10 +918,11 @@
         function parseActualsCSV(csvContent) {
             const lines = csvContent.split('\n');
             let importedCount = 0;
-            
+            const scenarioId = document.getElementById('scenario-selector').value;
+
             lines.forEach((line, index) => {
                 if (index === 0 || !line.trim()) return;
-                
+
                 const parts = line.split(',').map(p => p.trim());
                 if (parts.length < 3) return;
                 
@@ -922,12 +936,12 @@
                 
                 if (isNaN(monthNum) || monthNum < 0 || monthNum > 23 || isNaN(actualAmount) || actualAmount < 0) return;
                 
-                window.app.updateActualSpend(category.id, monthNum, actualAmount);
+                window.app.updateActualSpend(category.id, monthNum, actualAmount, scenarioId);
                 importedCount++;
             });
-            
-            renderEnhancedDataTable();
-            updateChart();
+
+            renderEnhancedDataTable(scenarioId);
+            updateChart(scenarioId);
             showNotification(`Successfully imported ${importedCount} actual values`, 'success');
         }
 
