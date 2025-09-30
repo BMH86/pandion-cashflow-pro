@@ -108,7 +108,21 @@ function validateBudgetCategory(data) {
     if (!['s-curve', 'straight-line', 'manual'].includes(data.distributionMethod)) {
         errors.push('Invalid distribution method');
     }
-    
+
+    if (data.distributionParams) {
+        const startMonth = Number(data.distributionParams.startMonth);
+        if (!Number.isFinite(startMonth) || startMonth < 0) {
+            errors.push('Start month must be 0 or greater');
+        }
+
+        if (data.distributionMethod !== 'manual') {
+            const duration = Number(data.distributionParams.duration);
+            if (!Number.isFinite(duration) || duration < 1) {
+                errors.push('Duration must be at least 1 month');
+            }
+        }
+    }
+
     return errors;
 }
 
@@ -144,10 +158,12 @@ class CashflowApp {
         this.projectData = this.getDefaultProjectData();
         this.unsubscribeCallbacks = [];
         this.chartInstances = new Map();
-        
+
         this.calculations = new CalculationEngine();
         this.visualization = new VisualizationEngine(this);
-        
+        this._horizonCache = null;
+        this._lastHintHorizon = null;
+
         this.waitForAuth();
     }
 
@@ -206,11 +222,112 @@ class CashflowApp {
         };
     }
 
+    invalidateHorizon() {
+        this._horizonCache = null;
+    }
+
+    getProjectHorizon() {
+        if (this._horizonCache === null) {
+            this._horizonCache = this.computeProjectHorizon();
+        }
+        return this._horizonCache;
+    }
+
+    computeProjectHorizon() {
+        const defaultHorizon = 24;
+
+        if (!this.projectData) {
+            return defaultHorizon;
+        }
+
+        let horizon = 0;
+
+        const info = this.projectData.info || {};
+        ['horizon', 'horizonMonths', 'timelineMonths'].forEach(key => {
+            const value = Number(info[key]);
+            if (Number.isFinite(value)) {
+                horizon = Math.max(horizon, value);
+            }
+        });
+
+        (this.projectData.budgetCategories || []).forEach(category => {
+            const params = category.distributionParams || {};
+            const startMonth = Number(params.startMonth ?? 0);
+            const duration = Number(params.duration ?? 0);
+
+            if (Number.isFinite(startMonth) && Number.isFinite(duration)) {
+                horizon = Math.max(horizon, startMonth + duration);
+            }
+
+            const manualDistribution = params.manualDistribution || category.manualDistribution;
+            if (manualDistribution && typeof manualDistribution === 'object') {
+                Object.keys(manualDistribution).forEach(monthKey => {
+                    const monthIndex = parseInt(monthKey, 10);
+                    if (!Number.isNaN(monthIndex)) {
+                        horizon = Math.max(horizon, monthIndex + 1);
+                    }
+                });
+            }
+        });
+
+        const scenarios = this.projectData.scenarios || {};
+        Object.values(scenarios).forEach(scenario => {
+            ['projections', 'actuals'].forEach(type => {
+                const dataset = scenario?.[type] || {};
+                Object.values(dataset).forEach(monthMap => {
+                    if (monthMap && typeof monthMap === 'object') {
+                        Object.keys(monthMap).forEach(monthKey => {
+                            const monthIndex = parseInt(monthKey, 10);
+                            if (!Number.isNaN(monthIndex)) {
+                                horizon = Math.max(horizon, monthIndex + 1);
+                            }
+                        });
+                    }
+                });
+            });
+        });
+
+        return horizon > 0 ? Math.max(horizon, defaultHorizon) : defaultHorizon;
+    }
+
+    updateTimelineHints(root = document) {
+        if (!root || typeof root.querySelectorAll !== 'function') {
+            return;
+        }
+
+        const horizon = this.getProjectHorizon();
+        const maxMonth = Math.max(horizon - 1, 0);
+        const hintMessage = horizon > 0
+            ? `Use month numbers 0–${maxMonth}. Enter a higher month to extend the project timeline automatically.`
+            : 'Use month numbers starting at 0. Enter a higher month to extend the project timeline automatically.';
+
+        root.querySelectorAll('[data-month-range-hint]').forEach(element => {
+            element.textContent = hintMessage;
+        });
+
+        root.querySelectorAll('[data-start-month-input]').forEach(input => {
+            input.setAttribute('min', '0');
+            input.removeAttribute('max');
+            if (!input.dataset.originalPlaceholder) {
+                input.dataset.originalPlaceholder = input.placeholder || '';
+            }
+            const placeholderRange = horizon > 0 ? `0–${maxMonth}` : '0';
+            input.placeholder = `e.g., ${placeholderRange}`;
+        });
+
+        if (root === document && this._lastHintHorizon !== horizon) {
+            this._lastHintHorizon = horizon;
+            document.dispatchEvent(new CustomEvent('cashflow:horizon-updated', {
+                detail: { horizon }
+            }));
+        }
+    }
+
     async init() {
         console.log('CashflowApp: Starting initialization...');
         try {
             showLoading('Initializing application...');
-            
+
             await this.loadProjects();
             this.setupEventListeners();
             this.setupTooltips();
@@ -320,10 +437,11 @@ class CashflowApp {
                 this.projects[projectId] = newProject;
                 this.currentProjectId = projectId;
                 this.projectData = newProject.data;
-                
+                this.invalidateHorizon();
+
                 this.updateProjectSelector();
                 await this.loadCurrentProject();
-                
+
                 showNotification('Project created successfully', 'success');
                 return projectId;
             } else {
@@ -346,9 +464,10 @@ class CashflowApp {
             if (this.projects[projectId]) {
                 this.currentProjectId = projectId;
                 this.projectData = this.projects[projectId].data;
-                
+                this.invalidateHorizon();
+
                 localStorage.setItem('last_project_id', projectId);
-                
+
                 await this.loadCurrentProject();
                 this.updateProjectSelector();
                 
@@ -386,8 +505,9 @@ class CashflowApp {
                 if (this.currentProjectId === projectId) {
                     this.currentProjectId = null;
                     this.projectData = this.getDefaultProjectData();
+                    this.invalidateHorizon();
                 }
-                
+
                 this.updateProjectSelector();
                 
                 if (Object.keys(this.projects).length > 0) {
@@ -463,12 +583,14 @@ class CashflowApp {
             if (isModifiedByCurrentUser) {
                 console.log('Project updated remotely by current user, syncing without notification.');
                 this.projectData = updatedProject.data;
+                this.invalidateHorizon();
                 this.loadCurrentProject();
                 return;
             }
 
             console.log('Project updated by another user, reloading...');
             this.projectData = updatedProject.data;
+            this.invalidateHorizon();
             this.loadCurrentProject();
             showNotification('Project updated by another user', 'info', 2000);
         });
@@ -483,7 +605,8 @@ class CashflowApp {
             this.updateProjectSummary();
             this.updateProjectInfo();
             this.loadScenarios();
-            
+            this.updateTimelineHints();
+
             console.log('Current project loaded');
         } catch (error) {
             console.error('Error loading current project:', error);
@@ -519,14 +642,26 @@ class CashflowApp {
         console.log(`Adding budget category: ${code} - ${name}`);
         
         try {
+            const normalizedParams = {
+                intensity: 3,
+                startMonth: 0,
+                duration: 12,
+                ...distributionParams
+            };
+
             const validation = validateBudgetCategory({
-                code, name, amount, costType, distributionMethod
+                code,
+                name,
+                amount,
+                costType,
+                distributionMethod,
+                distributionParams: normalizedParams
             });
-            
+
             if (validation.length > 0) {
                 throw new Error(validation.join(', '));
             }
-            
+
             const category = {
                 id: Date.now(),
                 code: code.trim(),
@@ -534,15 +669,11 @@ class CashflowApp {
                 amount: parseFloat(amount) || 0,
                 costType: costType,
                 distributionMethod: distributionMethod,
-                distributionParams: {
-                    intensity: 3,
-                    startMonth: 0,
-                    duration: 12,
-                    ...distributionParams
-                }
+                distributionParams: normalizedParams
             };
-            
+
             this.projectData.budgetCategories.push(category);
+            this.invalidateHorizon();
             this.calculateProjections(category.id);
             this.debouncedSave();
             this.renderBudgetTable();
@@ -568,7 +699,8 @@ class CashflowApp {
             }
             
             Object.assign(category, updates);
-            
+            this.invalidateHorizon();
+
             const validation = validateBudgetCategory(category);
             if (validation.length > 0) {
                 throw new Error(validation.join(', '));
@@ -601,7 +733,8 @@ class CashflowApp {
             }
             
             this.projectData.budgetCategories = this.projectData.budgetCategories.filter(c => c.id !== id);
-            
+            this.invalidateHorizon();
+
             Object.keys(this.projectData.scenarios).forEach(scenarioId => {
                 delete this.projectData.scenarios[scenarioId].projections[id];
                 delete this.projectData.scenarios[scenarioId].actuals[id];
@@ -630,6 +763,12 @@ class CashflowApp {
 
         const modal = document.getElementById('modal-container');
         if (modal) {
+            const projectHorizon = this.getProjectHorizon();
+            const horizonMaxMonth = Math.max(projectHorizon - 1, 0);
+            const monthHint = projectHorizon > 0
+                ? `Use month numbers 0–${horizonMaxMonth}. Enter a higher month to extend the timeline automatically.`
+                : 'Use month numbers starting at 0. Enter a higher month to extend the timeline automatically.';
+
             modal.innerHTML = `
                 <div class="modal-overlay">
                     <div class="modal-content">
@@ -677,7 +816,8 @@ class CashflowApp {
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Start Month</label>
-                                    <input type="number" name="startMonth" value="${category.distributionParams.startMonth || 0}" min="0" max="23">
+                                    <input type="number" name="startMonth" value="${category.distributionParams.startMonth || 0}" min="0" data-start-month-input>
+                                    <span class="form-helper-text" data-month-range-hint>${monthHint}</span>
                                 </div>
                                 <div class="form-group">
                                     <label>Duration (months)</label>
@@ -692,6 +832,7 @@ class CashflowApp {
                     </div>
                 </div>
             `;
+            this.updateTimelineHints(modal);
             modal.style.display = 'block';
             
             // Add keyboard support
@@ -741,11 +882,12 @@ class CashflowApp {
                     scenario.projections[categoryId] = {};
                 }
 
+                const horizon = this.getProjectHorizon();
                 const projections = this.calculations.calculateDistribution(
                     category.amount,
                     category.distributionMethod,
                     category.distributionParams,
-                    24
+                    horizon
                 );
 
                 scenario.projections[categoryId] = projections;
@@ -804,6 +946,11 @@ class CashflowApp {
             }
 
             scenario.actuals[categoryId][month] = parseFloat(amount) || 0;
+            const currentHorizon = this.getProjectHorizon();
+            if (month + 1 > currentHorizon) {
+                this.invalidateHorizon();
+                this.updateTimelineHints();
+            }
             this.debouncedSave();
 
             if (targetScenarioId === this.projectData.currentScenario) {
@@ -951,6 +1098,7 @@ class CashflowApp {
             row.querySelectorAll('[data-tooltip]').forEach(el => this.addTooltip(el));
         });
 
+        this.updateTimelineHints();
         console.log(`Budget table rendered with ${this.projectData.budgetCategories.length} categories`);
     }
 
@@ -1081,6 +1229,12 @@ class CashflowApp {
         const modal = document.getElementById('modal-container');
         if (!modal) return;
 
+        const projectHorizon = this.getProjectHorizon();
+        const horizonMaxMonth = Math.max(projectHorizon - 1, 0);
+        const monthHint = projectHorizon > 0
+            ? `Use month numbers 0–${horizonMaxMonth}. Enter a higher month to extend the timeline automatically.`
+            : 'Use month numbers starting at 0. Enter a higher month to extend the timeline automatically.';
+
         modal.innerHTML = `
             <div class="modal-overlay">
                 <div class="modal-content">
@@ -1153,7 +1307,8 @@ class CashflowApp {
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="form-group">
                                     <label>Start Month</label>
-                                    <input type="number" name="startMonth" min="0" max="23" value="0">
+                                    <input type="number" name="startMonth" min="0" value="0" data-start-month-input>
+                                    <span class="form-helper-text" data-month-range-hint>${monthHint}</span>
                                 </div>
                                 <div class="form-group">
                                     <label>Duration (months)</label>
@@ -1189,10 +1344,12 @@ class CashflowApp {
             e.preventDefault();
             this.handleAddBudgetForm(e.target);
         });
-        
+
         setTimeout(() => {
             modal.querySelectorAll('[data-tooltip]').forEach(el => this.addTooltip(el));
         }, 100);
+
+        this.updateTimelineHints(modal);
     }
 
     handleAddBudgetForm(form) {
@@ -1530,17 +1687,18 @@ class VisualizationEngine {
         const actualData = [];
         const cumulativePlanned = [];
         const cumulativeActual = [];
-        
+
         let runningPlanned = 0;
         let runningActual = 0;
-        
+
         const scenario = data.scenarios[data.currentScenario];
-        
-        for (let month = 0; month < 24; month++) {
+        const monthsToRender = Math.max(this.app.getProjectHorizon(), 0);
+
+        for (let month = 0; month < monthsToRender; month++) {
             const monthDate = new Date();
             monthDate.setMonth(monthDate.getMonth() + month);
             months.push(monthDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
-            
+
             let monthlyPlanned = 0;
             let monthlyActual = 0;
             

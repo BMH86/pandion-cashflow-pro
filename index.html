@@ -306,8 +306,12 @@
                                 <label data-tooltip="Month when spending begins (0 = first month)">
                                     Start Month
                                 </label>
-                                <input type="number" id="start-month" min="0" max="23" value="0" 
+                                <input type="number" id="start-month" min="0" value="0"
+                                       data-start-month-input
                                        class="w-full p-3 border border-gray-300 rounded-lg">
+                                <span class="form-helper-text" data-month-range-hint>
+                                    Use month numbers 0–23. Enter a higher month to extend the project timeline automatically.
+                                </span>
                             </div>
                             <div class="form-group">
                                 <label data-tooltip="Number of months over which spending occurs">

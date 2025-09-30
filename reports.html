@@ -447,10 +447,13 @@
                         <div class="form-group">
                             <label for="date-range">Date Range</label>
                             <select id="date-range" onchange="updateChart()">
-                                <option value="12">12 Months</option>
-                                <option value="24" selected>24 Months</option>
-                                <option value="custom">Custom Range</option>
+                                <option value="12" data-range="12">First 12 Months</option>
+                                <option value="24" data-range="24">First 24 Months</option>
+                                <option value="full" data-range="full" selected>Full Timeline</option>
                             </select>
+                            <span class="form-helper-text" id="date-range-hint">
+                                Project timeline currently spans months 0–23.
+                            </span>
                         </div>
                         <div class="form-group" style="align-self: end;">
                             <button onclick="updateChart()" class="btn-primary" style="width: 100%;" data-tooltip="Refresh chart with current settings">
@@ -536,6 +539,60 @@
     <script>
         let mainChart = null;
 
+        function getProjectHorizon() {
+            if (window.app && typeof window.app.getProjectHorizon === 'function') {
+                return window.app.getProjectHorizon();
+            }
+            return 24;
+        }
+
+        function refreshDateRangeControls() {
+            const select = document.getElementById('date-range');
+            if (!select) return;
+
+            const horizon = getProjectHorizon();
+            const maxMonth = Math.max(horizon - 1, 0);
+            const hint = document.getElementById('date-range-hint');
+
+            Array.from(select.options).forEach(option => {
+                const rangeValue = option.getAttribute('data-range');
+                if (!rangeValue) return;
+
+                if (rangeValue === 'full') {
+                    option.textContent = `Full Timeline (${horizon} ${horizon === 1 ? 'Month' : 'Months'})`;
+                    option.disabled = false;
+                } else {
+                    const numericValue = parseInt(rangeValue, 10);
+                    if (!Number.isNaN(numericValue)) {
+                        option.textContent = `First ${numericValue} Months`;
+                        option.disabled = horizon > 0 ? numericValue > horizon : false;
+                    }
+                }
+            });
+
+            if (hint) {
+                hint.textContent = horizon > 0
+                    ? `Project timeline currently spans months 0–${maxMonth}.`
+                    : 'Project timeline updates automatically as data is added.';
+            }
+
+            const selectedOption = Array.from(select.options).find(option => option.value === select.value && !option.disabled);
+            if (!selectedOption) {
+                select.value = 'full';
+            }
+        }
+
+        document.addEventListener('cashflow:horizon-updated', () => {
+            refreshDateRangeControls();
+
+            if (window.app) {
+                const selector = document.getElementById('scenario-selector');
+                const scenarioId = selector?.value || window.app.projectData.currentScenario;
+                updateChart(scenarioId);
+                renderEnhancedDataTable(scenarioId);
+            }
+        });
+
         // ============================================================================
         // FIXED: PAGE INITIALIZATION WITH AUTH CHECK
         // ============================================================================
@@ -577,6 +634,7 @@
                 // Load data and update visualizations
                 if (window.app) {
                     loadScenarios();
+                    refreshDateRangeControls();
                     const initialScenarioId = document.getElementById('scenario-selector')?.value || window.app.projectData.currentScenario;
                     updateChart(initialScenarioId);
                     renderEnhancedDataTable(initialScenarioId);
@@ -637,10 +695,27 @@
         function updateChart(scenarioIdOverride) {
             if (!mainChart || !window.app || !window.app.projectData) return;
 
+            refreshDateRangeControls();
+
             const selector = document.getElementById('scenario-selector');
             const scenarioId = scenarioIdOverride || selector?.value || window.app.projectData.currentScenario;
             const chartType = document.getElementById('chart-type').value;
-            const dateRange = parseInt(document.getElementById('date-range').value);
+            const rangeSelect = document.getElementById('date-range');
+            const rangeValue = rangeSelect ? rangeSelect.value : 'full';
+            const horizon = getProjectHorizon();
+
+            let monthsToRender = horizon;
+            if (rangeValue !== 'full') {
+                const parsedRange = parseInt(rangeValue, 10);
+                if (!Number.isNaN(parsedRange)) {
+                    monthsToRender = horizon > 0 ? Math.min(parsedRange, horizon) : parsedRange;
+                }
+            }
+
+            if (monthsToRender <= 0) {
+                mainChart.clear();
+                return;
+            }
 
             const scenario = window.app.projectData.scenarios[scenarioId];
             if (!scenario) return;
@@ -649,17 +724,17 @@
             const plannedData = [];
             const actualData = [];
             const varianceData = [];
-            
+
             let cumulativePlanned = 0;
             let cumulativeActual = 0;
             const cumulativePlannedData = [];
             const cumulativeActualData = [];
 
-            for (let month = 0; month < dateRange; month++) {
+            for (let month = 0; month < monthsToRender; month++) {
                 const monthDate = new Date();
                 monthDate.setMonth(monthDate.getMonth() + month);
                 months.push(monthDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
-                
+
                 let monthlyPlanned = 0;
                 let monthlyActual = 0;
                 
@@ -776,8 +851,9 @@
             
             let cumulativePlanned = 0;
             let cumulativeActual = 0;
-            
-            for (let month = 0; month < 24; month++) {
+            const horizon = getProjectHorizon();
+
+            for (let month = 0; month < horizon; month++) {
                 const monthDate = new Date();
                 monthDate.setMonth(monthDate.getMonth() + month);
                 const monthName = monthDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
@@ -919,6 +995,8 @@
             const lines = csvContent.split('\n');
             let importedCount = 0;
             const scenarioId = document.getElementById('scenario-selector').value;
+            const initialHorizon = getProjectHorizon();
+            let extendedTimeline = false;
 
             lines.forEach((line, index) => {
                 if (index === 0 || !line.trim()) return;
@@ -930,18 +1008,24 @@
                 const category = window.app.projectData.budgetCategories.find(c => c.code === code);
                 
                 if (!category) return;
-                
+
                 const monthNum = parseInt(month);
                 const actualAmount = parseFloat(amount);
-                
-                if (isNaN(monthNum) || monthNum < 0 || monthNum > 23 || isNaN(actualAmount) || actualAmount < 0) return;
-                
+
+                if (isNaN(monthNum) || monthNum < 0 || isNaN(actualAmount) || actualAmount < 0) return;
+                if (monthNum + 1 > initialHorizon) {
+                    extendedTimeline = true;
+                }
+
                 window.app.updateActualSpend(category.id, monthNum, actualAmount, scenarioId);
                 importedCount++;
             });
 
             renderEnhancedDataTable(scenarioId);
             updateChart(scenarioId);
+            if (extendedTimeline) {
+                refreshDateRangeControls();
+            }
             showNotification(`Successfully imported ${importedCount} actual values`, 'success');
         }
 
@@ -951,16 +1035,17 @@
             const scenarioId = document.getElementById('scenario-selector').value;
             const scenario = window.app.projectData.scenarios[scenarioId];
             let csv = 'Category Code,Category Name,Month,Month Name,Planned,Actual,Variance\n';
-            
+
             window.app.projectData.budgetCategories.forEach(category => {
                 const projections = scenario.projections[category.id] || {};
                 const actuals = scenario.actuals[category.id] || {};
-                
-                for (let month = 0; month < 24; month++) {
+                const horizon = getProjectHorizon();
+
+                for (let month = 0; month < horizon; month++) {
                     const planned = projections[month] || 0;
                     const actual = actuals[month] || 0;
                     const variance = actual - planned;
-                    
+
                     const monthDate = new Date();
                     monthDate.setMonth(monthDate.getMonth() + month);
                     const monthName = monthDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
