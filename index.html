@@ -155,11 +155,11 @@
                             data-tooltip="Switch between projects">
                         <option value="">Loading projects...</option>
                     </select>
-                    <button onclick="app.showNewProjectModal()" class="btn-secondary btn-small"
+                    <button onclick="safeShowNewProjectModal()" class="btn-secondary btn-small"
                             data-tooltip="Create a new project">
                         ➕ New Project
                     </button>
-                    <button onclick="deleteCurrentProject()" class="btn-danger btn-small"
+                    <button onclick="safeDeleteCurrentProject()" class="btn-danger btn-small"
                             data-tooltip="Delete current project (Super Admin only)"
                             id="delete-project-btn">
                         🗑️ Delete
@@ -238,7 +238,7 @@
                     <div id="budget-table">
                         <div class="budget-header">
                             <h3>Categories</h3>
-                            <button onclick="app.showAddBudgetModal()" class="btn-primary"
+                            <button onclick="safeShowAddBudgetModal()" class="btn-primary"
                                     data-tooltip="Add a new budget category to your project">
                                 ➕ Add Category
                             </button>
@@ -313,7 +313,8 @@
                                 <label data-tooltip="Number of months over which spending occurs">
                                     Duration (months)
                                 </label>
-                                <input type="number" id="duration" min="1" max="24" value="12" 
+                                <!-- FIXED: Removed max="24" cap -->
+                                <input type="number" id="duration" min="1" value="12" 
                                        class="w-full p-3 border border-gray-300 rounded-lg">
                             </div>
                         </div>
@@ -391,7 +392,63 @@
     <script src="main.js"></script>
     
     <script>
-        // Initialize page-specific functionality
+        // ============================================================================
+        // SAFETY WRAPPERS - Prevent errors if app not ready
+        // ============================================================================
+        
+        function safeShowAddBudgetModal() {
+            if (window.app && typeof app.showAddBudgetModal === 'function') {
+                app.showAddBudgetModal();
+            } else {
+                console.error('App not ready or function missing');
+                alert('Application is still loading. Please wait a moment and try again.');
+            }
+        }
+        
+        function safeShowNewProjectModal() {
+            if (window.app && typeof app.showNewProjectModal === 'function') {
+                app.showNewProjectModal();
+            } else {
+                console.error('App not ready');
+                alert('Application is still loading. Please wait a moment and try again.');
+            }
+        }
+        
+        // ENHANCED: Delete button with better error handling
+        function safeDeleteCurrentProject() {
+            if (!window.app) {
+                showNotification('Application not ready', 'error');
+                return;
+            }
+            
+            if (!window.authManager || !window.authManager.isSuperAdmin()) {
+                showNotification('Only super admins can delete projects', 'error');
+                return;
+            }
+            
+            if (!app.currentProjectId) {
+                showNotification('No project selected. Please select or create a project first.', 'warning');
+                return;
+            }
+            
+            app.deleteProject(app.currentProjectId);
+        }
+        
+        function updateGlobalMethod(method) {
+            if (window.app) {
+                app.projectData.budgetCategories.forEach(category => {
+                    app.updateBudgetCategory(category.id, {
+                        distributionMethod: method
+                    });
+                });
+                showNotification(`Global method updated to ${method}`, 'success');
+            }
+        }
+
+        // ============================================================================
+        // PAGE INITIALIZATION
+        // ============================================================================
+        
         document.addEventListener('DOMContentLoaded', function() {
             // Display user info
             if (window.authManager && window.authManager.currentUser) {
@@ -429,40 +486,18 @@
                 });
             }
 
-            // Setup chart if data exists
+            // FIXED: Enhanced chart initialization with better safety checks
             setTimeout(() => {
-                if (window.app && app.projectData.budgetCategories.length > 0) {
+                if (window.app && 
+                    app.projectData && 
+                    app.projectData.budgetCategories && 
+                    app.projectData.budgetCategories.length > 0) {
                     app.visualization.renderCashflowChart('cashflow-chart', app.projectData);
+                } else {
+                    console.log('Chart not rendered - no budget categories or app not ready');
                 }
             }, 1000);
         });
-
-        // Global functions for button handlers
-        function createNewProject() {
-            const projectName = prompt('Enter project name:');
-            if (projectName && window.app) {
-                app.createNewProject(projectName);
-            }
-        }
-
-        function deleteCurrentProject() {
-            if (window.app && app.currentProjectId) {
-                app.deleteProject(app.currentProjectId);
-            } else {
-                showNotification('No project selected', 'warning');
-            }
-        }
-
-        function updateGlobalMethod(method) {
-            if (window.app) {
-                app.projectData.budgetCategories.forEach(category => {
-                    app.updateBudgetCategory(category.id, {
-                        distributionMethod: method
-                    });
-                });
-                showNotification(`Global method updated to ${method}`, 'success');
-            }
-        }
     </script>
 </body>
 </html>
