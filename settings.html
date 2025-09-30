@@ -739,12 +739,31 @@
             document.getElementById('project-manager').value = projectInfo.manager || '';
             document.getElementById('project-description').value = projectInfo.description || '';
             
-            if (projectInfo.startDate) {
-                document.getElementById('start-date').value = new Date(projectInfo.startDate).toISOString().split('T')[0];
-            }
-            if (projectInfo.endDate) {
-                document.getElementById('end-date').value = new Date(projectInfo.endDate).toISOString().split('T')[0];
-            }
+            const startDateInput = document.getElementById('start-date');
+            const endDateInput = document.getElementById('end-date');
+
+            const toDateInputValue = (value) => {
+                if (!value) return '';
+
+                let dateValue = value;
+                if (typeof value?.toDate === 'function') {
+                    dateValue = value.toDate();
+                } else if (!(value instanceof Date)) {
+                    dateValue = new Date(value);
+                }
+
+                if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+                    return dateValue.toISOString().split('T')[0];
+                }
+
+                return '';
+            };
+
+            const startDateValue = toDateInputValue(projectInfo.startDate);
+            startDateInput.value = startDateValue;
+
+            const endDateValue = toDateInputValue(projectInfo.endDate);
+            endDateInput.value = endDateValue;
 
             if (projectInfo.colors) {
                 document.getElementById('primary-color').value = projectInfo.colors.primary || '#2C3E50';
@@ -765,13 +784,50 @@
 
             const projectInfo = appInstance.projectData.info;
             
-            projectInfo.name = document.getElementById('project-name').value;
-            projectInfo.client = document.getElementById('client-name').value;
-            projectInfo.location = document.getElementById('project-location').value;
-            projectInfo.manager = document.getElementById('project-manager').value;
-            projectInfo.description = document.getElementById('project-description').value;
-            projectInfo.startDate = new Date(document.getElementById('start-date').value);
-            projectInfo.endDate = new Date(document.getElementById('end-date').value);
+            const name = document.getElementById('project-name').value;
+            const client = document.getElementById('client-name').value;
+            const location = document.getElementById('project-location').value;
+            const manager = document.getElementById('project-manager').value;
+            const description = document.getElementById('project-description').value;
+
+            const startDateRaw = document.getElementById('start-date').value;
+            const endDateRaw = document.getElementById('end-date').value;
+
+            const parseDateInput = (value) => {
+                if (!value) return null;
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime()) ? null : parsed;
+            };
+
+            const startDate = parseDateInput(startDateRaw);
+            const endDate = parseDateInput(endDateRaw);
+
+            const updatedInfo = {
+                ...projectInfo,
+                name,
+                client,
+                location,
+                manager,
+                description,
+                startDate,
+                endDate
+            };
+
+            if (typeof validateProjectInfo === 'function') {
+                const validationErrors = validateProjectInfo(updatedInfo);
+                if (validationErrors.length > 0) {
+                    validationErrors.forEach((error) => showNotification(error, 'warning'));
+                    return;
+                }
+            }
+
+            projectInfo.name = name;
+            projectInfo.client = client;
+            projectInfo.location = location;
+            projectInfo.manager = manager;
+            projectInfo.description = description;
+            projectInfo.startDate = startDate;
+            projectInfo.endDate = endDate;
 
             appInstance.debouncedSave();
             showNotification('Project information saved successfully', 'success');
