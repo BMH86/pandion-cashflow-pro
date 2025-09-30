@@ -8,6 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
     <link href="https://unpkg.com/splitting@1.0.6/dist/splitting.css" rel="stylesheet">
     <script src="https://unpkg.com/splitting@1.0.6/dist/splitting.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
     <style>
         :root {
             --primary-color: #2C3E50;
@@ -40,7 +41,6 @@
             min-height: 100vh;
         }
 
-        /* Header Styles */
         .header {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
@@ -115,7 +115,6 @@
             gap: 1rem;
         }
 
-        /* Main Content */
         .main-content {
             flex: 1;
             padding: 2rem;
@@ -158,7 +157,6 @@
             color: var(--primary-color);
         }
 
-        /* Form Styles */
         .form {
             display: flex;
             flex-direction: column;
@@ -206,7 +204,6 @@
             gap: 1rem;
         }
 
-        /* Logo Upload */
         .logo-upload {
             display: flex;
             flex-direction: column;
@@ -250,7 +247,6 @@
             font-size: 12px;
         }
 
-        /* Color Picker */
         .color-picker-group {
             display: flex;
             gap: 1rem;
@@ -278,7 +274,6 @@
             color: var(--medium-gray);
         }
 
-        /* Data Management */
         .data-actions {
             display: flex;
             flex-direction: column;
@@ -311,7 +306,6 @@
             color: white;
         }
 
-        /* Button Styles */
         .btn-primary {
             background: var(--secondary-color);
             color: white;
@@ -362,7 +356,6 @@
             transform: scale(1.02);
         }
 
-        /* Responsive Design */
         @media (max-width: 968px) {
             .settings-layout {
                 grid-template-columns: 1fr;
@@ -388,7 +381,6 @@
             }
         }
 
-        /* Animation Classes */
         .fade-in {
             animation: fadeIn 0.5s ease-out;
         }
@@ -407,7 +399,6 @@
             to { transform: translateX(0); opacity: 1; }
         }
 
-        /* Notification */
         .notification {
             position: fixed;
             top: 2rem;
@@ -440,7 +431,6 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Header -->
         <header class="header">
             <div class="header-content">
                 <div class="logo-section">
@@ -456,16 +446,14 @@
                 </nav>
                 
                 <div class="user-section">
-                    <span>Project Manager</span>
+                    <span id="user-email">Project Manager</span>
                     <div class="logo" style="width: 32px; height: 32px; font-size: 14px;">PM</div>
                 </div>
             </div>
         </header>
 
-        <!-- Main Content -->
         <main class="main-content">
             <div class="settings-layout">
-                <!-- Project Information Panel -->
                 <div class="panel slide-in">
                     <div class="panel-header">
                         <h2 class="panel-title">Project Information</h2>
@@ -510,7 +498,6 @@
                     </form>
                 </div>
 
-                <!-- Branding Configuration Panel -->
                 <div class="panel slide-in">
                     <div class="panel-header">
                         <h2 class="panel-title">Branding Configuration</h2>
@@ -573,7 +560,6 @@
                     </form>
                 </div>
 
-                <!-- System Settings Panel -->
                 <div class="panel slide-in">
                     <div class="panel-header">
                         <h2 class="panel-title">System Settings</h2>
@@ -646,7 +632,6 @@
                     </form>
                 </div>
 
-                <!-- Data Management Panel -->
                 <div class="panel slide-in">
                     <div class="panel-header">
                         <h2 class="panel-title">Data Management</h2>
@@ -686,22 +671,60 @@
         </main>
     </div>
 
-    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
     <script src="main.js"></script>
     <script>
-        // Initialize page
+        // ============================================================================
+        // FIXED: PAGE INITIALIZATION WITH AUTH CHECK
+        // ============================================================================
         document.addEventListener('DOMContentLoaded', function() {
-            loadSettings();
-            
-            // Animate panels
-            anime({
-                targets: '.slide-in',
-                translateX: [-50, 0],
-                opacity: [0, 1],
-                duration: 600,
-                delay: anime.stagger(100),
-                easing: 'easeOutQuart'
+            // Check authentication first
+            firebase.auth().onAuthStateChanged((user) => {
+                if (!user) {
+                    console.log('No user authenticated, redirecting to login');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                // Display user email
+                const userEmailEl = document.getElementById('user-email');
+                if (userEmailEl) {
+                    userEmailEl.textContent = user.email;
+                }
+                
+                // Initialize or wait for app
+                if (!window.app) {
+                    console.log('Waiting for app to initialize...');
+                    const checkApp = setInterval(() => {
+                        if (window.app) {
+                            clearInterval(checkApp);
+                            initializePage();
+                        }
+                    }, 100);
+                } else {
+                    initializePage();
+                }
             });
+
+            function initializePage() {
+                console.log('Settings page initialized with app');
+                
+                loadSettings();
+                
+                if (typeof anime !== 'undefined') {
+                    anime({
+                        targets: '.slide-in',
+                        translateX: [-50, 0],
+                        opacity: [0, 1],
+                        duration: 600,
+                        delay: anime.stagger(100),
+                        easing: 'easeOutQuart'
+                    });
+                }
+            }
         });
 
         function loadSettings() {
@@ -709,7 +732,6 @@
 
             const projectInfo = app.projectData.info;
             
-            // Load project information
             document.getElementById('project-name').value = projectInfo.name || '';
             document.getElementById('client-name').value = projectInfo.client || '';
             document.getElementById('project-location').value = projectInfo.location || '';
@@ -723,14 +745,12 @@
                 document.getElementById('end-date').value = new Date(projectInfo.endDate).toISOString().split('T')[0];
             }
 
-            // Load branding colors
             if (projectInfo.colors) {
                 document.getElementById('primary-color').value = projectInfo.colors.primary || '#2C3E50';
                 document.getElementById('secondary-color').value = projectInfo.colors.secondary || '#E67E22';
                 document.getElementById('accent-color').value = projectInfo.colors.accent || '#16A085';
             }
 
-            // Load logo if exists
             if (projectInfo.logo) {
                 const logoPreview = document.getElementById('logo-preview');
                 logoPreview.innerHTML = `<img src="${projectInfo.logo}" alt="Company Logo">`;
@@ -751,7 +771,7 @@
             projectInfo.startDate = new Date(document.getElementById('start-date').value);
             projectInfo.endDate = new Date(document.getElementById('end-date').value);
 
-            app.saveProjects();
+            app.debouncedSave();
             showNotification('Project information saved successfully', 'success');
         }
 
@@ -766,14 +786,13 @@
                 accent: document.getElementById('accent-color').value
             };
 
-            app.saveProjects();
+            app.debouncedSave();
             showNotification('Branding configuration saved successfully', 'success');
         }
 
         function saveSystemSettings() {
             if (!window.app) return;
 
-            // Save system settings to localStorage
             const settings = {
                 defaultMethod: document.getElementById('default-method').value,
                 currencyFormat: document.getElementById('currency-format').value,
@@ -799,10 +818,9 @@
                 logoPreview.innerHTML = `<img src="${e.target.result}" alt="Company Logo">`;
                 logoPreview.classList.add('has-logo');
                 
-                // Save logo to app data
                 if (window.app) {
                     app.projectData.info.logo = e.target.result;
-                    app.saveToStorage();
+                    app.debouncedSave();
                 }
             };
             reader.readAsDataURL(file);
@@ -838,7 +856,7 @@
                     if (data.projectData) {
                         if (confirm('This will replace all current project data. Are you sure?')) {
                             app.projectData = data.projectData;
-                            app.saveProjects();
+                            app.debouncedSave();
                             loadSettings();
                             showNotification('Project data imported successfully', 'success');
                         }
@@ -898,12 +916,11 @@
             }, 3000);
         }
 
-        // Auto-save functionality
         setInterval(() => {
             if (window.app && document.getElementById('enable-notifications')?.checked) {
-                app.saveToStorage();
+                app.debouncedSave();
             }
-        }, 300000); // Auto-save every 5 minutes
+        }, 300000);
     </script>
 </body>
 </html>
