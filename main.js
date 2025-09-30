@@ -1720,13 +1720,11 @@ window.toggleDistributionParams = function(method) {
 // APPLICATION INITIALIZATION
 // ============================================================================
 
-let app;
-
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing app...');
     try {
-        app = new CashflowApp();
-        window.app = app;
+        const app = new CashflowApp();  // ✅ Use const locally
+        window.app = app;  // ✅ Expose globally
     } catch (error) {
         console.error('App initialization error:', error);
         showNotification('Failed to initialize application', 'error');
