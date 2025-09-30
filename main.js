@@ -438,20 +438,39 @@ class CashflowApp {
         this.unsubscribeCallbacks = [];
         
         const unsubscribe = window.firebaseStorage.subscribeToAllProjects((result) => {
-            if (result.success) {
-                this.projects = result.data;
-                this.updateProjectSelector();
-                
-                if (this.currentProjectId && this.projects[this.currentProjectId]) {
-                    const updatedProject = this.projects[this.currentProjectId];
-                    if (JSON.stringify(updatedProject.data) !== JSON.stringify(this.projectData)) {
-                        console.log('Project updated by another user, reloading...');
-                        this.projectData = updatedProject.data;
-                        this.loadCurrentProject();
-                        showNotification('Project updated by another user', 'info', 2000);
-                    }
-                }
+            if (!result.success) {
+                return;
             }
+
+            this.projects = result.data;
+            this.updateProjectSelector();
+
+            if (!this.currentProjectId || !this.projects[this.currentProjectId]) {
+                return;
+            }
+
+            const updatedProject = this.projects[this.currentProjectId];
+            const projectDataChanged = JSON.stringify(updatedProject.data) !== JSON.stringify(this.projectData);
+
+            if (!projectDataChanged) {
+                return;
+            }
+
+            const currentUserId = window.authManager.currentUser?.uid;
+            const modifiedBy = updatedProject.modifiedBy;
+            const isModifiedByCurrentUser = currentUserId && modifiedBy && modifiedBy === currentUserId;
+
+            if (isModifiedByCurrentUser) {
+                console.log('Project updated remotely by current user, syncing without notification.');
+                this.projectData = updatedProject.data;
+                this.loadCurrentProject();
+                return;
+            }
+
+            console.log('Project updated by another user, reloading...');
+            this.projectData = updatedProject.data;
+            this.loadCurrentProject();
+            showNotification('Project updated by another user', 'info', 2000);
         });
         
         this.unsubscribeCallbacks.push(unsubscribe);
