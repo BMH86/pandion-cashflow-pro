@@ -1720,11 +1720,14 @@ window.toggleDistributionParams = function(method) {
 // APPLICATION INITIALIZATION
 // ============================================================================
 
+// Global app instance (using var to avoid strict mode conflicts)
+var app;  // ✅ Change to var, or remove entirely
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing app...');
     try {
-        const app = new CashflowApp();  // ✅ Use const locally
-        window.app = app;  // ✅ Expose globally
+        app = new CashflowApp();
+        window.app = app;
     } catch (error) {
         console.error('App initialization error:', error);
         showNotification('Failed to initialize application', 'error');
