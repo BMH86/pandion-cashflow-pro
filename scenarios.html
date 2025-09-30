@@ -696,7 +696,7 @@
             
             if (confirm('Are you sure you want to delete this scenario?')) {
                 delete app.projectData.scenarios[currentScenarioId];
-                app.saveProjects();
+                window.app.saveCurrentProject();
                 refreshScenarioList();
                 loadScenario('baseline');
             }
