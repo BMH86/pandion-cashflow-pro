@@ -677,6 +677,17 @@
     <script src="firebase-config.js"></script>
     <script src="main.js"></script>
     <script>
+        const DEFAULT_SYSTEM_SETTINGS = {
+            defaultMethod: 's-curve',
+            currencyFormat: 'USD',
+            numberFormat: '1,234.56',
+            dateFormat: 'MM/DD/YYYY',
+            defaultIntensity: '3',
+            autosaveInterval: '5',
+            enableNotifications: false,
+            darkMode: false
+        };
+
         // ============================================================================
         // FIXED: PAGE INITIALIZATION WITH AUTH CHECK
         // ============================================================================
@@ -709,11 +720,11 @@
                 }
             });
 
-            function initializePage() {
+            async function initializePage() {
                 console.log('Settings page initialized with app');
-                
-                loadSettings();
-                
+
+                await loadSettings();
+
                 if (typeof anime !== 'undefined') {
                     anime({
                         targets: '.slide-in',
@@ -727,11 +738,13 @@
             }
         });
 
-        function loadSettings() {
+        async function loadSettings() {
             if (!window.app) return;
 
+            await loadAndApplySystemSettings();
+
             const projectInfo = app.projectData.info;
-            
+
             document.getElementById('project-name').value = projectInfo.name || '';
             document.getElementById('client-name').value = projectInfo.client || '';
             document.getElementById('project-location').value = projectInfo.location || '';
@@ -790,10 +803,52 @@
             showNotification('Branding configuration saved successfully', 'success');
         }
 
-        function saveSystemSettings() {
-            if (!window.app) return;
+        async function loadAndApplySystemSettings() {
+            const userId = window.authManager?.currentUser?.uid;
+            let settings = { ...DEFAULT_SYSTEM_SETTINGS };
 
-            const settings = {
+            if (userId && window.firebaseStorage?.loadSettings) {
+                try {
+                    const result = await window.firebaseStorage.loadSettings(userId);
+                    if (result.success) {
+                        const remoteSettings = result.data || {};
+                        settings = { ...settings, ...remoteSettings };
+                    } else {
+                        console.warn('Unable to load user settings:', result.error);
+                        showNotification('Unable to load saved settings. Defaults applied.', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error loading settings:', error);
+                    showNotification('Unable to load saved settings. Defaults applied.', 'error');
+                }
+            }
+
+            applySystemSettings(settings);
+            return settings;
+        }
+
+        function applySystemSettings(settings) {
+            const defaultMethodEl = document.getElementById('default-method');
+            const currencyFormatEl = document.getElementById('currency-format');
+            const numberFormatEl = document.getElementById('number-format');
+            const dateFormatEl = document.getElementById('date-format');
+            const defaultIntensityEl = document.getElementById('default-intensity');
+            const autosaveIntervalEl = document.getElementById('autosave-interval');
+            const enableNotificationsEl = document.getElementById('enable-notifications');
+            const darkModeEl = document.getElementById('dark-mode');
+
+            if (defaultMethodEl) defaultMethodEl.value = settings.defaultMethod || DEFAULT_SYSTEM_SETTINGS.defaultMethod;
+            if (currencyFormatEl) currencyFormatEl.value = settings.currencyFormat || DEFAULT_SYSTEM_SETTINGS.currencyFormat;
+            if (numberFormatEl) numberFormatEl.value = settings.numberFormat || DEFAULT_SYSTEM_SETTINGS.numberFormat;
+            if (dateFormatEl) dateFormatEl.value = settings.dateFormat || DEFAULT_SYSTEM_SETTINGS.dateFormat;
+            if (defaultIntensityEl) defaultIntensityEl.value = settings.defaultIntensity || DEFAULT_SYSTEM_SETTINGS.defaultIntensity;
+            if (autosaveIntervalEl) autosaveIntervalEl.value = settings.autosaveInterval || DEFAULT_SYSTEM_SETTINGS.autosaveInterval;
+            if (enableNotificationsEl) enableNotificationsEl.checked = Boolean(settings.enableNotifications);
+            if (darkModeEl) darkModeEl.checked = Boolean(settings.darkMode);
+        }
+
+        function getSystemSettingsFromForm() {
+            return {
                 defaultMethod: document.getElementById('default-method').value,
                 currencyFormat: document.getElementById('currency-format').value,
                 numberFormat: document.getElementById('number-format').value,
@@ -803,9 +858,30 @@
                 enableNotifications: document.getElementById('enable-notifications').checked,
                 darkMode: document.getElementById('dark-mode').checked
             };
+        }
 
-            localStorage.setItem('cashflow_settings', JSON.stringify(settings));
-            showNotification('System settings saved successfully', 'success');
+        async function saveSystemSettings() {
+            if (!window.app) return;
+
+            const userId = window.authManager?.currentUser?.uid;
+            if (!userId) {
+                showNotification('Unable to save settings. User not authenticated.', 'error');
+                return;
+            }
+
+            const settings = getSystemSettingsFromForm();
+
+            try {
+                const result = await window.firebaseStorage.saveSettings(userId, settings);
+                if (result.success) {
+                    showNotification('System settings saved successfully', 'success');
+                } else {
+                    throw new Error(result.error || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Error saving system settings:', error);
+                showNotification('Failed to save system settings. Please try again.', 'error');
+            }
         }
 
         function handleLogoUpload(event) {
@@ -875,7 +951,7 @@
 
             const backup = {
                 projectData: app.projectData,
-                settings: localStorage.getItem('cashflow_settings'),
+                settings: JSON.stringify(getSystemSettingsFromForm()),
                 timestamp: new Date().toISOString(),
                 version: '1.0'
             };
