@@ -731,19 +731,33 @@
             if (!window.app) return;
 
             const projectInfo = app.projectData.info;
-            
+
+            const startDateInput = document.getElementById('start-date');
+            const endDateInput = document.getElementById('end-date');
+
             document.getElementById('project-name').value = projectInfo.name || '';
             document.getElementById('client-name').value = projectInfo.client || '';
             document.getElementById('project-location').value = projectInfo.location || '';
             document.getElementById('project-manager').value = projectInfo.manager || '';
             document.getElementById('project-description').value = projectInfo.description || '';
-            
-            if (projectInfo.startDate) {
-                document.getElementById('start-date').value = new Date(projectInfo.startDate).toISOString().split('T')[0];
-            }
-            if (projectInfo.endDate) {
-                document.getElementById('end-date').value = new Date(projectInfo.endDate).toISOString().split('T')[0];
-            }
+
+            const normalizeDateValue = (value) => {
+                if (!value) return null;
+
+                if (typeof value.toDate === 'function') {
+                    const converted = value.toDate();
+                    return isNaN(converted) ? null : converted;
+                }
+
+                const parsedDate = value instanceof Date ? value : new Date(value);
+                return isNaN(parsedDate) ? null : parsedDate;
+            };
+
+            const startDate = normalizeDateValue(projectInfo.startDate);
+            const endDate = normalizeDateValue(projectInfo.endDate);
+
+            startDateInput.value = startDate ? startDate.toISOString().split('T')[0] : '';
+            endDateInput.value = endDate ? endDate.toISOString().split('T')[0] : '';
 
             if (projectInfo.colors) {
                 document.getElementById('primary-color').value = projectInfo.colors.primary || '#2C3E50';
@@ -762,16 +776,46 @@
             if (!window.app) return;
 
             const projectInfo = app.projectData.info;
-            
+
+            const startDateValue = document.getElementById('start-date').value;
+            const endDateValue = document.getElementById('end-date').value;
+
+            const parseDate = (value) => {
+                if (!value) return null;
+
+                const parsed = new Date(value);
+                if (isNaN(parsed)) {
+                    return null;
+                }
+
+                if (firebase?.firestore?.Timestamp?.fromDate) {
+                    return firebase.firestore.Timestamp.fromDate(parsed);
+                }
+
+                return parsed;
+            };
+
             projectInfo.name = document.getElementById('project-name').value;
             projectInfo.client = document.getElementById('client-name').value;
             projectInfo.location = document.getElementById('project-location').value;
             projectInfo.manager = document.getElementById('project-manager').value;
             projectInfo.description = document.getElementById('project-description').value;
-            projectInfo.startDate = new Date(document.getElementById('start-date').value);
-            projectInfo.endDate = new Date(document.getElementById('end-date').value);
+            projectInfo.startDate = parseDate(startDateValue);
+            projectInfo.endDate = parseDate(endDateValue);
 
-            app.debouncedSave();
+            if (!projectInfo.startDate) {
+                delete projectInfo.startDate;
+            }
+            if (!projectInfo.endDate) {
+                delete projectInfo.endDate;
+            }
+
+            if (typeof app.saveCurrentProject === 'function') {
+                app.saveCurrentProject();
+            } else if (typeof app.debouncedSave === 'function') {
+                app.debouncedSave();
+            }
+
             showNotification('Project information saved successfully', 'success');
         }
 
