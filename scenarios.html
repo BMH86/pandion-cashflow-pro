@@ -832,66 +832,105 @@
         }
 
         function updateComparison() {
-            const compareScenarioId = document.getElementById('comparison-scenario').value;
+            const selector = document.getElementById('comparison-scenario');
+            const compareScenarioId = selector?.value;
             const appInstance = window.app;
-            if (!compareScenarioId || !appInstance) return;
+
+            if (!appInstance) return;
+
+            const tbody = document.querySelector('#comparison-table tbody');
+            const impactSummary = document.getElementById('impact-summary');
+
+            if (!tbody) return;
+
+            if (!compareScenarioId) {
+                tbody.innerHTML = '';
+                if (impactSummary) {
+                    impactSummary.textContent = 'Select a scenario to compare against the current plan.';
+                }
+                return;
+            }
 
             const currentScenario = appInstance.projectData.scenarios[currentScenarioId];
             const compareScenario = appInstance.projectData.scenarios[compareScenarioId];
 
             if (!currentScenario || !compareScenario) return;
 
-            const tbody = document.querySelector('#comparison-table tbody');
-            if (!tbody) return;
+            const getScenarioCategoryTotal = (scenario, categoryId, fallbackAmount = 0) => {
+                if (!scenario) return fallbackAmount;
+
+                const parseValue = (value) => {
+                    const num = parseFloat(value);
+                    return isNaN(num) ? 0 : num;
+                };
+
+                if (scenario.adjustments && scenario.adjustments[categoryId] !== undefined) {
+                    const adjustment = scenario.adjustments[categoryId];
+                    if (typeof adjustment === 'number') {
+                        return parseValue(adjustment);
+                    }
+                    if (typeof adjustment === 'object' && adjustment !== null) {
+                        return Object.values(adjustment).reduce((sum, val) => sum + parseValue(val), 0);
+                    }
+                }
+
+                if (scenario.projections && scenario.projections[categoryId]) {
+                    return Object.values(scenario.projections[categoryId]).reduce((sum, val) => sum + parseValue(val), 0);
+                }
+
+                return fallbackAmount;
+            };
+
+            const formatCurrency = (value) => Number((value || 0).toFixed(2)).toLocaleString();
 
             tbody.innerHTML = '';
-            
+
             let totalCurrent = 0;
             let totalCompare = 0;
-            
-            appInstance.projectData.budgetCategories.forEach(category => {
-                const currentAmount = category.amount;
-                const compareAmount = category.amount;
+
+            (appInstance.projectData.budgetCategories || []).forEach(category => {
+                const fallbackAmount = parseFloat(category.amount) || 0;
+                const currentAmount = getScenarioCategoryTotal(currentScenario, category.id, fallbackAmount);
+                const compareAmount = getScenarioCategoryTotal(compareScenario, category.id, fallbackAmount);
                 const variance = compareAmount - currentAmount;
-                const variancePercent = currentAmount > 0 ? (variance / currentAmount * 100).toFixed(1) : 0;
-                
+                const variancePercent = currentAmount !== 0 ? (variance / currentAmount) * 100 : 0;
+
                 totalCurrent += currentAmount;
                 totalCompare += compareAmount;
-                
+
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="category-col">${category.name}</td>
-                    <td>$${currentAmount.toLocaleString()}</td>
-                    <td>$${compareAmount.toLocaleString()}</td>
+                    <td>$${formatCurrency(currentAmount)}</td>
+                    <td>$${formatCurrency(compareAmount)}</td>
                     <td class="${variance >= 0 ? 'variance-positive' : 'variance-negative'}">
-                        ${variance >= 0 ? '+' : ''}$${variance.toLocaleString()} (${variancePercent}%)
+                        ${variance >= 0 ? '+' : ''}$${formatCurrency(variance)} (${variancePercent.toFixed(1)}%)
                     </td>
                 `;
                 tbody.appendChild(row);
             });
 
             const totalVariance = totalCompare - totalCurrent;
-            const totalVariancePercent = totalCurrent > 0 ? (totalVariance / totalCurrent * 100).toFixed(1) : 0;
-            
+            const totalVariancePercent = totalCurrent !== 0 ? (totalVariance / totalCurrent) * 100 : 0;
+
             const totalRow = document.createElement('tr');
             totalRow.style.fontWeight = 'bold';
             totalRow.style.background = 'var(--light-gray)';
             totalRow.innerHTML = `
                 <td class="category-col">Total</td>
-                <td>$${totalCurrent.toLocaleString()}</td>
-                <td>$${totalCompare.toLocaleString()}</td>
+                <td>$${formatCurrency(totalCurrent)}</td>
+                <td>$${formatCurrency(totalCompare)}</td>
                 <td class="${totalVariance >= 0 ? 'variance-positive' : 'variance-negative'}">
-                    ${totalVariance >= 0 ? '+' : ''}$${totalVariance.toLocaleString()} (${totalVariancePercent}%)
+                    ${totalVariance >= 0 ? '+' : ''}$${formatCurrency(totalVariance)} (${totalVariancePercent.toFixed(1)}%)
                 </td>
             `;
             tbody.appendChild(totalRow);
 
-            const impactSummary = document.getElementById('impact-summary');
             if (impactSummary) {
-                const impact = totalVariance > 0 ? 'increase' : 'decrease';
+                const impact = totalVariance >= 0 ? 'increase' : 'decrease';
                 impactSummary.innerHTML = `
-                    Switching to ${compareScenario.name} would ${impact} the total budget by 
-                    <strong>$${Math.abs(totalVariance).toLocaleString()}</strong> (${Math.abs(totalVariancePercent)}%).
+                    Switching to ${compareScenario.name} would ${impact} the total budget by
+                    <strong>$${formatCurrency(Math.abs(totalVariance))}</strong> (${Math.abs(totalVariancePercent).toFixed(1)}%).
                 `;
             }
         }
