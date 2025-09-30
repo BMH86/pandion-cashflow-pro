@@ -248,12 +248,16 @@
             }
         });
 
-        // Check if already logged in
-        authManager.onAuthStateChanged((user) => {
-            if (user) {
-                window.location.href = 'index.html';
-            }
-        });
+        // Check if already logged in (only redirect once)
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        console.log('User already authenticated, redirecting to app');
+        // Small delay to ensure everything is ready
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 100);
+    }
+});
     </script>
 </body>
 </html>
