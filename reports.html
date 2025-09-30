@@ -37,14 +37,12 @@
             min-height: 100vh;
         }
 
-        /* App Container */
         .app-container {
             display: flex;
             flex-direction: column;
             min-height: 100vh;
         }
 
-        /* Header */
         .app-header {
             background: white;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
@@ -108,7 +106,6 @@
             gap: 1rem;
         }
 
-        /* Main Content */
         .main-content {
             flex: 1;
             padding: 2rem;
@@ -155,7 +152,6 @@
             gap: 0.5rem;
         }
 
-        /* Chart Controls */
         .chart-controls {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -192,14 +188,12 @@
             box-shadow: 0 0 0 3px rgba(64, 126, 201, 0.1);
         }
 
-        /* Chart Container */
         .chart-container {
             height: 500px;
             position: relative;
             min-height: 400px;
         }
 
-        /* Data Table */
         .data-table-container {
             overflow-x: auto;
             max-height: 600px;
@@ -243,7 +237,6 @@
             background: rgba(64, 126, 201, 0.05);
         }
 
-        /* Inline Editing Styles */
         .editable-cell {
             position: relative;
             cursor: pointer;
@@ -284,7 +277,6 @@
             font-size: inherit;
         }
 
-        /* Variance Indicators */
         .variance-indicator {
             display: inline-flex;
             align-items: center;
@@ -327,7 +319,6 @@
             color: var(--medium-gray);
         }
 
-        /* Button Styles */
         .btn-primary {
             background: var(--secondary-color);
             color: white;
@@ -374,7 +365,6 @@
             flex-wrap: wrap;
         }
 
-        /* Animations */
         .slide-in {
             opacity: 0;
         }
@@ -401,7 +391,6 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Header -->
         <header class="app-header">
             <div class="header-left">
                 <div class="pandion-logo">
@@ -427,14 +416,12 @@
 
             <div class="user-section">
                 <span id="user-email" style="font-size: 14px; color: var(--medium-gray);"></span>
-                <button onclick="authManager.signOut()" class="btn-secondary btn-small">Logout</button>
+                <button onclick="window.authManager.signOut()" class="btn-secondary btn-small">Logout</button>
             </div>
         </header>
 
-        <!-- Main Content -->
         <main class="main-content">
             <div class="reports-layout">
-                <!-- Chart Controls Panel -->
                 <div class="panel slide-in">
                     <div class="panel-header">
                         <h2 class="panel-title">
@@ -473,7 +460,6 @@
                     </div>
                 </div>
 
-                <!-- Main Chart Panel -->
                 <div class="panel slide-in">
                     <div class="panel-header">
                         <h2 class="panel-title">
@@ -494,7 +480,6 @@
                     <div class="chart-container" id="main-chart"></div>
                 </div>
 
-                <!-- Data Table Panel -->
                 <div class="panel slide-in">
                     <div class="panel-header">
                         <h2 class="panel-title">
@@ -542,72 +527,85 @@
         </main>
     </div>
 
-    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    
-    <!-- Firebase Config -->
     <script src="firebase-config.js"></script>
-    
-    <!-- Main Application -->
     <script src="main.js"></script>
 
     <script>
         let mainChart = null;
 
         // ============================================================================
-        // PAGE INITIALIZATION
+        // FIXED: PAGE INITIALIZATION WITH AUTH CHECK
         // ============================================================================
         document.addEventListener('DOMContentLoaded', function() {
-            // Check authentication
-            if (!window.authManager || !window.authManager.currentUser) {
-                window.location.href = 'login.html';
-                return;
-            }
-
-            // Display user email
-            document.getElementById('user-email').textContent = window.authManager.currentUser.email;
-
-            // Initialize chart
-            initializeChart();
-            
-            // Load data and update visualizations
-            if (window.app) {
-                loadScenarios();
-                updateChart();
-                renderEnhancedDataTable();
-            }
-
-            // Animate panels
-            anime({
-                targets: '.slide-in',
-                translateX: [-50, 0],
-                opacity: [0, 1],
-                delay: anime.stagger(100),
-                duration: 800,
-                easing: 'easeOutExpo'
+            // Check authentication first
+            firebase.auth().onAuthStateChanged((user) => {
+                if (!user) {
+                    console.log('No user authenticated, redirecting to login');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                // Display user email
+                const userEmailEl = document.getElementById('user-email');
+                if (userEmailEl) {
+                    userEmailEl.textContent = user.email;
+                }
+                
+                // Initialize or wait for app
+                if (!window.app) {
+                    console.log('Waiting for app to initialize...');
+                    const checkApp = setInterval(() => {
+                        if (window.app) {
+                            clearInterval(checkApp);
+                            initializePage();
+                        }
+                    }, 100);
+                } else {
+                    initializePage();
+                }
             });
+
+            function initializePage() {
+                console.log('Reports page initialized with app');
+                
+                // Initialize chart
+                initializeChart();
+                
+                // Load data and update visualizations
+                if (window.app) {
+                    loadScenarios();
+                    updateChart();
+                    renderEnhancedDataTable();
+                }
+
+                // Animate panels
+                if (typeof anime !== 'undefined') {
+                    anime({
+                        targets: '.slide-in',
+                        translateX: [-50, 0],
+                        opacity: [0, 1],
+                        delay: anime.stagger(100),
+                        duration: 800,
+                        easing: 'easeOutExpo'
+                    });
+                }
+            }
         });
 
-        // ============================================================================
-        // CHART INITIALIZATION
-        // ============================================================================
         function initializeChart() {
             const chartDom = document.getElementById('main-chart');
             if (!chartDom) return;
 
             mainChart = echarts.init(chartDom);
             
-            // Responsive resize
             window.addEventListener('resize', () => {
                 if (mainChart) mainChart.resize();
             });
         }
 
-        // ============================================================================
-        // LOAD SCENARIOS
-        // ============================================================================
         function loadScenarios() {
             if (!window.app || !window.app.projectData) return;
 
@@ -625,9 +623,6 @@
             });
         }
 
-        // ============================================================================
-        // UPDATE CHART
-        // ============================================================================
         function updateChart() {
             if (!mainChart || !window.app || !window.app.projectData) return;
 
@@ -638,7 +633,6 @@
             const scenario = window.app.projectData.scenarios[scenarioId];
             if (!scenario) return;
 
-            // Prepare data
             const months = [];
             const plannedData = [];
             const actualData = [];
@@ -675,244 +669,66 @@
                 cumulativeActualData.push(cumulativeActual);
             }
 
-            // Build chart options based on chart type
             let option;
             
             switch(chartType) {
                 case 'monthly':
                     option = {
-                        title: {
-                            text: 'Monthly Cashflow Comparison',
-                            left: 'center',
-                            textStyle: { color: '#1B365D', fontSize: 18, fontWeight: 600 }
-                        },
-                        tooltip: {
-                            trigger: 'axis',
-                            axisPointer: { type: 'shadow' },
-                            formatter: function(params) {
-                                let result = `<strong>${params[0].name}</strong><br/>`;
-                                params.forEach(p => {
-                                    result += `${p.marker} ${p.seriesName}: $${p.value.toLocaleString()}<br/>`;
-                                });
-                                return result;
-                            }
-                        },
-                        legend: {
-                            data: ['Planned', 'Actual'],
-                            bottom: 10
-                        },
+                        title: { text: 'Monthly Cashflow Comparison', left: 'center', textStyle: { color: '#1B365D', fontSize: 18, fontWeight: 600 } },
+                        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                        legend: { data: ['Planned', 'Actual'], bottom: 10 },
                         grid: { left: '10%', right: '10%', bottom: '15%', top: '15%', containLabel: true },
-                        xAxis: {
-                            type: 'category',
-                            data: months,
-                            axisLabel: { rotate: 45 }
-                        },
-                        yAxis: {
-                            type: 'value',
-                            axisLabel: {
-                                formatter: function(value) {
-                                    return '$' + (value / 1000).toFixed(0) + 'K';
-                                }
-                            }
-                        },
+                        xAxis: { type: 'category', data: months, axisLabel: { rotate: 45 } },
+                        yAxis: { type: 'value', axisLabel: { formatter: value => '$' + (value / 1000).toFixed(0) + 'K' } },
                         series: [
-                            {
-                                name: 'Planned',
-                                type: 'bar',
-                                data: plannedData,
-                                itemStyle: { color: '#407EC9' }
-                            },
-                            {
-                                name: 'Actual',
-                                type: 'bar',
-                                data: actualData,
-                                itemStyle: { color: '#EAAA00' }
-                            }
+                            { name: 'Planned', type: 'bar', data: plannedData, itemStyle: { color: '#407EC9' } },
+                            { name: 'Actual', type: 'bar', data: actualData, itemStyle: { color: '#EAAA00' } }
                         ]
                     };
                     break;
 
                 case 'cumulative':
                     option = {
-                        title: {
-                            text: 'Cumulative Cashflow',
-                            left: 'center',
-                            textStyle: { color: '#1B365D', fontSize: 18, fontWeight: 600 }
-                        },
-                        tooltip: {
-                            trigger: 'axis',
-                            formatter: function(params) {
-                                let result = `<strong>${params[0].name}</strong><br/>`;
-                                params.forEach(p => {
-                                    result += `${p.marker} ${p.seriesName}: $${p.value.toLocaleString()}<br/>`;
-                                });
-                                return result;
-                            }
-                        },
-                        legend: {
-                            data: ['Cumulative Planned', 'Cumulative Actual'],
-                            bottom: 10
-                        },
+                        title: { text: 'Cumulative Cashflow', left: 'center', textStyle: { color: '#1B365D', fontSize: 18, fontWeight: 600 } },
+                        tooltip: { trigger: 'axis' },
+                        legend: { data: ['Cumulative Planned', 'Cumulative Actual'], bottom: 10 },
                         grid: { left: '10%', right: '10%', bottom: '15%', top: '15%', containLabel: true },
-                        xAxis: {
-                            type: 'category',
-                            data: months,
-                            axisLabel: { rotate: 45 }
-                        },
-                        yAxis: {
-                            type: 'value',
-                            axisLabel: {
-                                formatter: function(value) {
-                                    return '$' + (value / 1000).toFixed(0) + 'K';
-                                }
-                            }
-                        },
+                        xAxis: { type: 'category', data: months, axisLabel: { rotate: 45 } },
+                        yAxis: { type: 'value', axisLabel: { formatter: value => '$' + (value / 1000).toFixed(0) + 'K' } },
                         series: [
-                            {
-                                name: 'Cumulative Planned',
-                                type: 'line',
-                                data: cumulativePlannedData,
-                                smooth: true,
-                                lineStyle: { width: 3 },
-                                itemStyle: { color: '#407EC9' },
-                                areaStyle: { opacity: 0.3 }
-                            },
-                            {
-                                name: 'Cumulative Actual',
-                                type: 'line',
-                                data: cumulativeActualData,
-                                smooth: true,
-                                lineStyle: { width: 3 },
-                                itemStyle: { color: '#EAAA00' },
-                                areaStyle: { opacity: 0.3 }
-                            }
+                            { name: 'Cumulative Planned', type: 'line', data: cumulativePlannedData, smooth: true, lineStyle: { width: 3 }, itemStyle: { color: '#407EC9' }, areaStyle: { opacity: 0.3 } },
+                            { name: 'Cumulative Actual', type: 'line', data: cumulativeActualData, smooth: true, lineStyle: { width: 3 }, itemStyle: { color: '#EAAA00' }, areaStyle: { opacity: 0.3 } }
                         ]
                     };
                     break;
 
                 case 'variance':
                     option = {
-                        title: {
-                            text: 'Variance Analysis',
-                            left: 'center',
-                            textStyle: { color: '#1B365D', fontSize: 18, fontWeight: 600 }
-                        },
-                        tooltip: {
-                            trigger: 'axis',
-                            axisPointer: { type: 'shadow' },
-                            formatter: function(params) {
-                                const value = params[0].value;
-                                const status = value >= 0 ? 'Over Budget' : 'Under Budget';
-                                return `<strong>${params[0].name}</strong><br/>Variance: $${Math.abs(value).toLocaleString()}<br/>${status}`;
-                            }
-                        },
+                        title: { text: 'Variance Analysis', left: 'center', textStyle: { color: '#1B365D', fontSize: 18, fontWeight: 600 } },
+                        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
                         grid: { left: '10%', right: '10%', bottom: '15%', top: '15%', containLabel: true },
-                        xAxis: {
-                            type: 'category',
-                            data: months,
-                            axisLabel: { rotate: 45 }
-                        },
-                        yAxis: {
-                            type: 'value',
-                            axisLabel: {
-                                formatter: function(value) {
-                                    return '$' + (value / 1000).toFixed(0) + 'K';
-                                }
-                            }
-                        },
-                        series: [{
-                            name: 'Variance',
-                            type: 'bar',
-                            data: varianceData,
-                            itemStyle: {
-                                color: function(params) {
-                                    return params.value >= 0 ? '#e74c3c' : '#27ae60';
-                                }
-                            }
-                        }]
+                        xAxis: { type: 'category', data: months, axisLabel: { rotate: 45 } },
+                        yAxis: { type: 'value', axisLabel: { formatter: value => '$' + (value / 1000).toFixed(0) + 'K' } },
+                        series: [{ name: 'Variance', type: 'bar', data: varianceData, itemStyle: { color: params => params.value >= 0 ? '#e74c3c' : '#27ae60' } }]
                     };
                     break;
 
-                default: // combined
+                default:
                     option = {
-                        title: {
-                            text: 'Combined Cashflow View',
-                            left: 'center',
-                            textStyle: { color: '#1B365D', fontSize: 18, fontWeight: 600 }
-                        },
-                        tooltip: {
-                            trigger: 'axis',
-                            formatter: function(params) {
-                                let result = `<strong>${params[0].name}</strong><br/>`;
-                                params.forEach(p => {
-                                    result += `${p.marker} ${p.seriesName}: $${p.value.toLocaleString()}<br/>`;
-                                });
-                                return result;
-                            }
-                        },
-                        legend: {
-                            data: ['Planned', 'Actual', 'Cumulative Planned', 'Cumulative Actual'],
-                            bottom: 10
-                        },
+                        title: { text: 'Combined Cashflow View', left: 'center', textStyle: { color: '#1B365D', fontSize: 18, fontWeight: 600 } },
+                        tooltip: { trigger: 'axis' },
+                        legend: { data: ['Planned', 'Actual', 'Cumulative Planned', 'Cumulative Actual'], bottom: 10 },
                         grid: { left: '10%', right: '10%', bottom: '20%', top: '15%', containLabel: true },
-                        xAxis: {
-                            type: 'category',
-                            data: months,
-                            axisLabel: { rotate: 45 }
-                        },
+                        xAxis: { type: 'category', data: months, axisLabel: { rotate: 45 } },
                         yAxis: [
-                            {
-                                type: 'value',
-                                name: 'Monthly',
-                                position: 'left',
-                                axisLabel: {
-                                    formatter: function(value) {
-                                        return '$' + (value / 1000).toFixed(0) + 'K';
-                                    }
-                                }
-                            },
-                            {
-                                type: 'value',
-                                name: 'Cumulative',
-                                position: 'right',
-                                axisLabel: {
-                                    formatter: function(value) {
-                                        return '$' + (value / 1000).toFixed(0) + 'K';
-                                    }
-                                }
-                            }
+                            { type: 'value', name: 'Monthly', position: 'left', axisLabel: { formatter: value => '$' + (value / 1000).toFixed(0) + 'K' } },
+                            { type: 'value', name: 'Cumulative', position: 'right', axisLabel: { formatter: value => '$' + (value / 1000).toFixed(0) + 'K' } }
                         ],
                         series: [
-                            {
-                                name: 'Planned',
-                                type: 'bar',
-                                data: plannedData,
-                                itemStyle: { color: '#407EC9' }
-                            },
-                            {
-                                name: 'Actual',
-                                type: 'bar',
-                                data: actualData,
-                                itemStyle: { color: '#EAAA00' }
-                            },
-                            {
-                                name: 'Cumulative Planned',
-                                type: 'line',
-                                yAxisIndex: 1,
-                                data: cumulativePlannedData,
-                                smooth: true,
-                                lineStyle: { width: 3, type: 'dashed' },
-                                itemStyle: { color: '#1B365D' }
-                            },
-                            {
-                                name: 'Cumulative Actual',
-                                type: 'line',
-                                yAxisIndex: 1,
-                                data: cumulativeActualData,
-                                smooth: true,
-                                lineStyle: { width: 3, type: 'dashed' },
-                                itemStyle: { color: '#774212' }
-                            }
+                            { name: 'Planned', type: 'bar', data: plannedData, itemStyle: { color: '#407EC9' } },
+                            { name: 'Actual', type: 'bar', data: actualData, itemStyle: { color: '#EAAA00' } },
+                            { name: 'Cumulative Planned', type: 'line', yAxisIndex: 1, data: cumulativePlannedData, smooth: true, lineStyle: { width: 3, type: 'dashed' }, itemStyle: { color: '#1B365D' } },
+                            { name: 'Cumulative Actual', type: 'line', yAxisIndex: 1, data: cumulativeActualData, smooth: true, lineStyle: { width: 3, type: 'dashed' }, itemStyle: { color: '#774212' } }
                         ]
                     };
             }
@@ -920,9 +736,6 @@
             mainChart.setOption(option, true);
         }
 
-        // ============================================================================
-        // ENHANCED DATA TABLE WITH INLINE EDITING
-        // ============================================================================
         function renderEnhancedDataTable() {
             if (!window.app || !window.app.projectData) return;
 
@@ -933,7 +746,6 @@
             const scenario = window.app.projectData.scenarios[scenarioId];
             if (!scenario) return;
 
-            // Check if we have data
             if (!window.app.projectData.budgetCategories || window.app.projectData.budgetCategories.length === 0) {
                 tbody.innerHTML = `
                     <tr>
@@ -955,15 +767,11 @@
             for (let month = 0; month < 24; month++) {
                 const monthDate = new Date();
                 monthDate.setMonth(monthDate.getMonth() + month);
-                const monthName = monthDate.toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    year: '2-digit' 
-                });
+                const monthName = monthDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
                 
                 let monthlyPlanned = 0;
                 let monthlyActual = 0;
                 
-                // Sum up all categories for this month
                 window.app.projectData.budgetCategories.forEach(category => {
                     const projections = scenario.projections[category.id] || {};
                     const actuals = scenario.actuals[category.id] || {};
@@ -976,81 +784,42 @@
                 cumulativeActual += monthlyActual;
                 
                 const variance = monthlyActual - monthlyPlanned;
-                const variancePercent = monthlyPlanned > 0 
-                    ? (variance / monthlyPlanned * 100).toFixed(1) 
-                    : 0;
+                const variancePercent = monthlyPlanned > 0 ? (variance / monthlyPlanned * 100).toFixed(1) : 0;
                 
-                // Determine variance class
                 let varianceClass = 'variance-none';
                 if (monthlyActual > 0) {
                     const absVariancePercent = Math.abs(variancePercent);
-                    if (absVariancePercent <= 5) {
-                        varianceClass = 'variance-good';
-                    } else if (absVariancePercent <= 15) {
-                        varianceClass = 'variance-warning';
-                    } else {
-                        varianceClass = 'variance-bad';
-                    }
+                    if (absVariancePercent <= 5) varianceClass = 'variance-good';
+                    else if (absVariancePercent <= 15) varianceClass = 'variance-warning';
+                    else varianceClass = 'variance-bad';
                 }
                 
-                // Create row
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="month-col">${monthName}</td>
                     <td>$${monthlyPlanned.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
                     <td class="editable-cell" data-month="${month}" onclick="enterMonthActuals(${month})">
                         <span class="actual-display">
-                            ${monthlyActual > 0 
-                                ? '$' + monthlyActual.toLocaleString(undefined, {maximumFractionDigits: 0})
-                                : '—'
-                            }
+                            ${monthlyActual > 0 ? '$' + monthlyActual.toLocaleString(undefined, {maximumFractionDigits: 0}) : '—'}
                             <button class="edit-btn">✏️</button>
                         </span>
                     </td>
-                    <td>
-                        <span class="variance-indicator ${varianceClass}">
-                            ${variance >= 0 ? '+' : ''}$${Math.abs(variance).toLocaleString(undefined, {maximumFractionDigits: 0})}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="variance-indicator ${varianceClass}">
-                            ${variance >= 0 ? '+' : ''}${variancePercent}%
-                        </span>
-                    </td>
+                    <td><span class="variance-indicator ${varianceClass}">${variance >= 0 ? '+' : ''}$${Math.abs(variance).toLocaleString(undefined, {maximumFractionDigits: 0})}</span></td>
+                    <td><span class="variance-indicator ${varianceClass}">${variance >= 0 ? '+' : ''}${variancePercent}%</span></td>
                     <td>$${cumulativePlanned.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
                     <td>$${cumulativeActual.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-                    <td>
-                        <div style="display: flex; gap: 0.5rem; justify-content: center;">
-                            <button onclick="enterMonthActuals(${month})" 
-                                    class="btn-secondary btn-small"
-                                    data-tooltip="Edit all categories for ${monthName}">
-                                📝 Edit
-                            </button>
-                            <button onclick="copyPreviousMonth(${month})" 
-                                    class="btn-secondary btn-small"
-                                    ${month === 0 ? 'disabled' : ''}
-                                    data-tooltip="Copy actuals from previous month">
-                                📋
-                            </button>
-                        </div>
-                    </td>
+                    <td><button onclick="enterMonthActuals(${month})" class="btn-secondary btn-small">📝 Edit</button></td>
                 `;
                 tbody.appendChild(row);
             }
         }
 
-        // ============================================================================
-        // ENTER MONTH ACTUALS (Modal)
-        // ============================================================================
         function enterMonthActuals(month) {
             if (!window.app) return;
 
             const monthDate = new Date();
             monthDate.setMonth(monthDate.getMonth() + month);
-            const monthName = monthDate.toLocaleDateString('en-US', { 
-                month: 'long', 
-                year: 'numeric' 
-            });
+            const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
             const scenarioId = document.getElementById('scenario-selector').value;
             const scenario = window.app.projectData.scenarios[scenarioId];
@@ -1074,8 +843,7 @@
                                value="${currentActual || ''}"
                                placeholder="Enter actual amount"
                                style="width: 100%; padding: 0.75rem; border: 2px solid var(--light-gray); border-radius: 8px; font-size: 14px;"
-                               min="0"
-                               step="1">
+                               min="0" step="1">
                     </div>
                 `;
             });
@@ -1094,9 +862,6 @@
             `);
         }
 
-        // ============================================================================
-        // SAVE MONTH ACTUALS
-        // ============================================================================
         function saveMonthActuals(month) {
             if (!window.app) return;
 
@@ -1116,38 +881,6 @@
             showNotification('Actuals saved successfully', 'success');
         }
 
-        // ============================================================================
-        // COPY PREVIOUS MONTH
-        // ============================================================================
-        function copyPreviousMonth(month) {
-            if (month === 0 || !window.app) return;
-            
-            if (!confirm(`Copy actual values from previous month to this month?`)) {
-                return;
-            }
-            
-            const scenarioId = document.getElementById('scenario-selector').value;
-            const scenario = window.app.projectData.scenarios[scenarioId];
-            let copiedCount = 0;
-            
-            window.app.projectData.budgetCategories.forEach(category => {
-                const actuals = scenario.actuals[category.id] || {};
-                const previousMonthValue = actuals[month - 1];
-                
-                if (previousMonthValue !== undefined && previousMonthValue > 0) {
-                    window.app.updateActualSpend(category.id, month, previousMonthValue);
-                    copiedCount++;
-                }
-            });
-            
-            renderEnhancedDataTable();
-            updateChart();
-            showNotification(`Copied ${copiedCount} values from previous month`, 'success');
-        }
-
-        // ============================================================================
-        // CSV IMPORT/EXPORT
-        // ============================================================================
         function importActualsCSV() {
             const input = document.createElement('input');
             input.type = 'file';
@@ -1172,52 +905,30 @@
         function parseActualsCSV(csvContent) {
             const lines = csvContent.split('\n');
             let importedCount = 0;
-            const errors = [];
             
             lines.forEach((line, index) => {
-                if (index === 0) return; // Skip header
-                if (!line.trim()) return;
+                if (index === 0 || !line.trim()) return;
                 
                 const parts = line.split(',').map(p => p.trim());
-                if (parts.length < 3) {
-                    errors.push(`Line ${index + 1}: Invalid format`);
-                    return;
-                }
+                if (parts.length < 3) return;
                 
                 const [code, month, amount] = parts;
                 const category = window.app.projectData.budgetCategories.find(c => c.code === code);
                 
-                if (!category) {
-                    errors.push(`Line ${index + 1}: Category ${code} not found`);
-                    return;
-                }
+                if (!category) return;
                 
                 const monthNum = parseInt(month);
                 const actualAmount = parseFloat(amount);
                 
-                if (isNaN(monthNum) || monthNum < 0 || monthNum > 23) {
-                    errors.push(`Line ${index + 1}: Invalid month ${month}`);
-                    return;
-                }
-                
-                if (isNaN(actualAmount) || actualAmount < 0) {
-                    errors.push(`Line ${index + 1}: Invalid amount ${amount}`);
-                    return;
-                }
+                if (isNaN(monthNum) || monthNum < 0 || monthNum > 23 || isNaN(actualAmount) || actualAmount < 0) return;
                 
                 window.app.updateActualSpend(category.id, monthNum, actualAmount);
                 importedCount++;
             });
             
-            if (errors.length > 0) {
-                console.warn('Import errors:', errors);
-                showNotification(`Imported ${importedCount} actuals with ${errors.length} errors`, 'warning');
-            } else {
-                showNotification(`Successfully imported ${importedCount} actual values`, 'success');
-            }
-            
             renderEnhancedDataTable();
             updateChart();
+            showNotification(`Successfully imported ${importedCount} actual values`, 'success');
         }
 
         function exportActualsCSV() {
@@ -1238,10 +949,7 @@
                     
                     const monthDate = new Date();
                     monthDate.setMonth(monthDate.getMonth() + month);
-                    const monthName = monthDate.toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        year: 'numeric' 
-                    });
+                    const monthName = monthDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
                     
                     csv += `${category.code},"${category.name}",${month},"${monthName}",${planned},${actual},${variance}\n`;
                 }
@@ -1256,9 +964,6 @@
             showNotification('Actuals exported to CSV', 'success');
         }
 
-        // ============================================================================
-        // EXPORT FUNCTIONS
-        // ============================================================================
         function exportChart(format) {
             if (!mainChart) return;
             
@@ -1277,28 +982,16 @@
         }
 
         function exportTable(format) {
-            if (format === 'excel') {
-                showNotification('Excel export functionality coming soon', 'info');
-            }
+            showNotification('Excel export functionality coming soon', 'info');
         }
 
-        // ============================================================================
-        // UTILITY FUNCTIONS
-        // ============================================================================
         function showModal(content) {
             const modal = document.createElement('div');
             modal.id = 'actuals-modal';
             modal.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.6);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 1000;
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0, 0, 0, 0.6); display: flex;
+                align-items: center; justify-content: center; z-index: 1000;
                 backdrop-filter: blur(4px);
             `;
             
@@ -1313,56 +1006,25 @@
 
         function closeModal() {
             const modal = document.getElementById('actuals-modal');
-            if (modal) {
-                modal.remove();
-            }
+            if (modal) modal.remove();
         }
 
         function showNotification(message, type = 'info') {
-            const colors = {
-                success: '#27ae60',
-                error: '#e74c3c',
-                warning: '#f39c12',
-                info: '#407EC9'
-            };
+            const colors = { success: '#27ae60', error: '#e74c3c', warning: '#f39c12', info: '#407EC9' };
             
             const notification = document.createElement('div');
             notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: ${colors[type]};
-                color: white;
-                padding: 1rem 1.5rem;
-                border-radius: 8px;
+                position: fixed; top: 20px; right: 20px;
+                background: ${colors[type]}; color: white;
+                padding: 1rem 1.5rem; border-radius: 8px;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-                z-index: 2000;
-                font-weight: 600;
-                animation: slideIn 0.3s ease;
+                z-index: 2000; font-weight: 600;
             `;
             notification.textContent = message;
             
             document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.style.animation = 'slideOut 0.3s ease';
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
+            setTimeout(() => notification.remove(), 3000);
         }
-
-        // Add CSS animations
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideIn {
-                from { transform: translateX(400px); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-            @keyframes slideOut {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(400px); opacity: 0; }
-            }
-        `;
-        document.head.appendChild(style);
     </script>
 </body>
 </html>
