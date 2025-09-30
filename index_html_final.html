@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cashflow Pro - Pandion Development</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Page-specific styles */
+        .header {
+            background: var(--pdn-sky);
+            border-bottom: 3px solid var(--pdn-sun);
+        }
+
+        .logo-container {
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-container:hover {
+            opacity: 0.9;
+        }
+
+        .pandion-logo {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+        }
+
+        .app-title {
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .app-subtitle {
+            color: var(--pdn-sun);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .user-badge {
+            background: var(--pdn-blue);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .user-role-badge {
+            background: var(--pdn-sun);
+            color: var(--pdn-sky);
+            padding: 0.125rem 0.5rem;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .btn-danger {
+            background: var(--error-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 12px;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo-container" onclick="window.location.href='index.html'" 
+                         data-tooltip="Return to Dashboard">
+                        <!-- Pandion Logo - Use actual logo image file -->
+                        <img src="pandion-logo.png" 
+                             alt="Pandion Logo" 
+                             class="pandion-logo"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        
+                        <!-- Fallback SVG if image not found -->
+                        <svg class="pandion-logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="display: none;">
+                            <!-- Yellow sun circle background -->
+                            <circle cx="100" cy="100" r="85" fill="#EAAA00"/>
+                            
+                            <!-- Left wing feathers (curved segments) -->
+                            <path d="M 50,60 Q 35,50 25,45" stroke="#774212" stroke-width="10" fill="none" stroke-linecap="round"/>
+                            <path d="M 50,70 Q 35,60 25,55" stroke="#774212" stroke-width="10" fill="none" stroke-linecap="round"/>
+                            <path d="M 50,80 Q 35,70 25,65" stroke="#774212" stroke-width="10" fill="none" stroke-linecap="round"/>
+                            <path d="M 50,90 Q 35,80 25,75" stroke="#774212" stroke-width="10" fill="none" stroke-linecap="round"/>
+                            <path d="M 50,100 Q 35,90 25,85" stroke="#774212" stroke-width="9" fill="none" stroke-linecap="round"/>
+                            <path d="M 50,110 Q 35,100 28,95" stroke="#774212" stroke-width="8" fill="none" stroke-linecap="round"/>
+                            
+                            <!-- Right wing feathers (curved segments) -->
+                            <path d="M 150,60 Q 165,50 175,45" stroke="#774212" stroke-width="10" fill="none" stroke-linecap="round"/>
+                            <path d="M 150,70 Q 165,60 175,55" stroke="#774212" stroke-width="10" fill="none" stroke-linecap="round"/>
+                            <path d="M 150,80 Q 165,70 175,65" stroke="#774212" stroke-width="10" fill="none" stroke-linecap="round"/>
+                            <path d="M 150,90 Q 165,80 175,75" stroke="#774212" stroke-width="10" fill="none" stroke-linecap="round"/>
+                            <path d="M 150,100 Q 165,90 175,85" stroke="#774212" stroke-width="9" fill="none" stroke-linecap="round"/>
+                            <path d="M 150,110 Q 165,100 172,95" stroke="#774212" stroke-width="8" fill="none" stroke-linecap="round"/>
+                            
+                            <!-- Osprey head and body -->
+                            <ellipse cx="85" cy="95" rx="12" ry="15" fill="#774212"/>
+                            <circle cx="85" cy="95" r="5" fill="white"/>
+                            <circle cx="85" cy="95" r="2" fill="#000"/>
+                            
+                            <!-- Beak -->
+                            <path d="M 75,100 L 70,102 L 75,104 Z" fill="#000"/>
+                            
+                            <!-- Body and tail -->
+                            <ellipse cx="100" cy="115" rx="20" ry="30" fill="#774212"/>
+                            
+                            <!-- Talons -->
+                            <path d="M 90,135 L 88,145 M 90,135 L 92,145 M 90,135 L 90,145" stroke="#774212" stroke-width="4" fill="none"/>
+                            <path d="M 110,135 L 108,145 M 110,135 L 112,145 M 110,135 L 110,145" stroke="#774212" stroke-width="4" fill="none"/>
+                            
+                            <!-- Tail feathers -->
+                            <path d="M 100,145 L 95,165 L 100,160 L 105,165 Z" fill="#774212"/>
+                        </svg>
+                        
+                        <div>
+                            <h1 class="app-title">PANDION</h1>
+                            <p class="app-subtitle">Cashflow Pro</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="project-selector-container">
+                    <select id="project-selector" class="project-selector"
+                            data-tooltip="Switch between projects">
+                        <option value="">Loading projects...</option>
+                    </select>
+                    <button onclick="app.showNewProjectModal()" class="btn-secondary btn-small"
+                            data-tooltip="Create a new project">
+                        ➕ New Project
+                    </button>
+                    <button onclick="deleteCurrentProject()" class="btn-danger btn-small"
+                            data-tooltip="Delete current project (Super Admin only)"
+                            id="delete-project-btn">
+                        🗑️ Delete
+                    </button>
+                </div>
+                
+                <nav class="nav-tabs">
+                    <a href="index.html" class="nav-tab active" data-page="index"
+                       data-tooltip="Project dashboard and budget management">Dashboard</a>
+                    <a href="scenarios.html" class="nav-tab" data-page="scenarios"
+                       data-tooltip="Create and compare different scenarios">Scenarios</a>
+                    <a href="reports.html" class="nav-tab" data-page="reports"
+                       data-tooltip="View reports and track actuals">Reports</a>
+                    <a href="settings.html" class="nav-tab" data-page="settings"
+                       data-tooltip="Project settings and preferences">Settings</a>
+                </nav>
+                
+                <div class="user-section">
+                    <div class="user-badge">
+                        <span id="user-email"></span>
+                        <span class="user-role-badge" id="user-role"></span>
+                    </div>
+                    <button class="btn-secondary btn-small" data-action="signout"
+                            data-tooltip="Sign out of your account">
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content" id="main-content">
+            <!-- Project Summary -->
+            <div id="project-summary" class="panel fade-in">
+                <div class="summary-card">
+                    <h2>Project Summary</h2>
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <span class="label">Total Budget</span>
+                            <span class="value" id="total-budget">$0</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Total Projected</span>
+                            <span class="value" id="total-projected">$0</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Total Actual</span>
+                            <span class="value" id="total-actual">$0</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Remaining</span>
+                            <span class="value" id="total-remaining">$0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Getting Started Guide -->
+                <div id="getting-started-guide" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h3 class="text-lg font-semibold text-blue-900 mb-2">👋 Getting Started</h3>
+                    <ol class="text-blue-800 text-sm space-y-2">
+                        <li><strong>1. Add Budget Categories:</strong> Click "Add Category" below to define your project costs</li>
+                        <li><strong>2. Configure Distribution:</strong> Choose how each category's budget is distributed over time</li>
+                        <li><strong>3. Review Projections:</strong> View your cashflow chart and export reports</li>
+                        <li><strong>4. Track Actuals:</strong> Enter actual spending to monitor variance</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Dashboard Grid -->
+            <div class="dashboard-grid">
+                <!-- Budget Categories Panel -->
+                <div class="panel slide-in">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Budget Categories</h2>
+                    </div>
+                    <div id="budget-table">
+                        <div class="budget-header">
+                            <h3>Categories</h3>
+                            <button onclick="app.showAddBudgetModal()" class="btn-primary"
+                                    data-tooltip="Add a new budget category to your project">
+                                ➕ Add Category
+                            </button>
+                        </div>
+                        <div class="budget-table-container">
+                            <table class="budget-table">
+                                <thead>
+                                    <tr>
+                                        <th data-tooltip="Category code or CSI number">Code</th>
+                                        <th data-tooltip="Category name or description">Name</th>
+                                        <th data-tooltip="Total budget amount">Amount</th>
+                                        <th data-tooltip="Hard costs, Soft costs, or TI">Type</th>
+                                        <th data-tooltip="How the budget is distributed over time">Method</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="budget-table-body">
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; padding: 2rem; color: var(--medium-gray);">
+                                            No budget categories added yet. Click "Add Category" to get started.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Projection Controls Panel -->
+                <div class="panel slide-in">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Projection Controls</h2>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="form-group">
+                            <label data-tooltip="Apply this method to all categories at once">
+                                Global Projection Method
+                            </label>
+                            <select id="global-projection-method" class="w-full p-3 border border-gray-300 rounded-lg" 
+                                    onchange="updateGlobalMethod(this.value)">
+                                <option value="s-curve">S-Curve Distribution</option>
+                                <option value="straight-line">Straight Line</option>
+                                <option value="manual">Manual Input</option>
+                            </select>
+                            <span class="form-helper-text">
+                                S-Curve mimics typical construction spending patterns
+                            </span>
+                        </div>
+                        
+                        <div id="s-curve-controls" class="space-y-4">
+                            <div class="form-group">
+                                <label data-tooltip="Adjust the steepness of the spending curve">
+                                    S-Curve Intensity
+                                </label>
+                                <input type="range" id="curve-intensity" min="1" max="5" value="3" class="w-full">
+                                <div class="flex justify-between text-sm text-gray-500 mt-1">
+                                    <span>Flat</span>
+                                    <span>Steep</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="form-group">
+                                <label data-tooltip="Month when spending begins (0 = first month)">
+                                    Start Month
+                                </label>
+                                <input type="number" id="start-month" min="0" max="23" value="0" 
+                                       class="w-full p-3 border border-gray-300 rounded-lg">
+                            </div>
+                            <div class="form-group">
+                                <label data-tooltip="Number of months over which spending occurs">
+                                    Duration (months)
+                                </label>
+                                <input type="number" id="duration" min="1" max="24" value="12" 
+                                       class="w-full p-3 border border-gray-300 rounded-lg">
+                            </div>
+                        </div>
+                        
+                        <button onclick="app.recalculateBaseline()" class="btn-primary w-full"
+                                data-tooltip="Recalculate all projections with current settings">
+                            🔄 Recalculate All Projections
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quick Actions Panel -->
+                <div class="panel slide-in">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Quick Actions</h2>
+                    </div>
+                    <div class="space-y-3">
+                        <button onclick="window.location.href='scenarios.html'" class="btn-secondary w-full"
+                                data-tooltip="Create and compare different project scenarios">
+                            📊 Manage Scenarios
+                        </button>
+                        <button onclick="window.location.href='reports.html'" class="btn-secondary w-full"
+                                data-tooltip="View detailed reports and charts">
+                            📈 View Reports
+                        </button>
+                        <button onclick="window.location.href='settings.html'" class="btn-secondary w-full"
+                                data-tooltip="Configure project settings and preferences">
+                            ⚙️ Project Settings
+                        </button>
+                        <button onclick="app.exportData()" class="btn-secondary w-full"
+                                data-tooltip="Export project data as JSON for backup">
+                            💾 Export Data
+                        </button>
+                        <button onclick="app.importData()" class="btn-secondary w-full"
+                                data-tooltip="Import project data from JSON file">
+                            📂 Import Data
+                        </button>
+                    </div>
+                    
+                    <div class="mt-6 pt-6 border-t border-gray-200">
+                        <h4 class="font-semibold mb-3">Current Scenario</h4>
+                        <select id="scenario-selector" class="w-full p-2 border border-gray-300 rounded-lg" 
+                                onchange="app.switchScenario(this.value)"
+                                data-tooltip="Switch between different project scenarios">
+                            <option value="baseline">Baseline</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Preview -->
+            <div class="panel fade-in">
+                <div class="panel-header">
+                    <h2 class="panel-title">Cashflow Visualization</h2>
+                    <button onclick="window.location.href='reports.html'" class="btn-primary"
+                            data-tooltip="View full-size charts and detailed reports">
+                        📊 View Full Reports
+                    </button>
+                </div>
+                <div id="cashflow-chart" class="chart-container"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modal-container" style="display: none;"></div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Application Scripts -->
+    <script src="firebase-config.js"></script>
+    <script src="main.js"></script>
+    
+    <script>
+        // Initialize page-specific functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Display user info
+            if (window.authManager && window.authManager.currentUser) {
+                document.getElementById('user-email').textContent = 
+                    window.authManager.currentUser.email;
+                document.getElementById('user-role').textContent = 
+                    window.authManager.userRole === 'super_admin' ? 'ADMIN' : 'USER';
+                
+                // Show/hide delete button based on role
+                const deleteBtn = document.getElementById('delete-project-btn');
+                if (deleteBtn) {
+                    deleteBtn.style.display = 
+                        window.authManager.isSuperAdmin() ? 'inline-block' : 'none';
+                }
+            }
+
+            // Animate panels on load
+            if (typeof anime !== 'undefined') {
+                anime({
+                    targets: '.slide-in',
+                    translateX: [-50, 0],
+                    opacity: [0, 1],
+                    duration: 600,
+                    delay: anime.stagger(100),
+                    easing: 'easeOutQuart'
+                });
+
+                anime({
+                    targets: '.fade-in',
+                    opacity: [0, 1],
+                    translateY: [20, 0],
+                    duration: 800,
+                    delay: 200,
+                    easing: 'easeOutQuart'
+                });
+            }
+
+            // Setup chart if data exists
+            setTimeout(() => {
+                if (window.app && app.projectData.budgetCategories.length > 0) {
+                    app.visualization.renderCashflowChart('cashflow-chart', app.projectData);
+                }
+            }, 1000);
+        });
+
+        // Global functions for button handlers
+        function createNewProject() {
+            const projectName = prompt('Enter project name:');
+            if (projectName && window.app) {
+                app.createNewProject(projectName);
+            }
+        }
+
+        function deleteCurrentProject() {
+            if (window.app && app.currentProjectId) {
+                app.deleteProject(app.currentProjectId);
+            } else {
+                showNotification('No project selected', 'warning');
+            }
+        }
+
+        function updateGlobalMethod(method) {
+            if (window.app) {
+                app.projectData.budgetCategories.forEach(category => {
+                    app.updateBudgetCategory(category.id, {
+                        distributionMethod: method
+                    });
+                });
+                showNotification(`Global method updated to ${method}`, 'success');
+            }
+        }
+    </script>
+</body>
+</html>
