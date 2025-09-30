@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
     <link href="https://unpkg.com/splitting@1.0.6/dist/splitting.css" rel="stylesheet">
     <script src="https://unpkg.com/splitting@1.0.6/dist/splitting.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
     <style>
         :root {
             --primary-color: #2C3E50;
@@ -468,7 +469,7 @@
                 </nav>
                 
                 <div class="user-section">
-                    <span>Project Manager</span>
+                    <span id="user-email"></span>
                     <div class="logo" style="width: 32px; height: 32px; font-size: 14px;">PM</div>
                 </div>
             </div>
@@ -592,34 +593,79 @@
         </main>
     </div>
 
-    <!-- Scripts -->
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Firebase Config -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- Main Application -->
     <script src="main.js"></script>
+
     <script>
         let currentScenarioId = 'baseline';
 
-        // Initialize page
+        // ============================================================================
+        // FIXED: PAGE INITIALIZATION WITH AUTH CHECK
+        // ============================================================================
         document.addEventListener('DOMContentLoaded', function() {
-            // Load scenarios from app
-            if (window.app) {
-                refreshScenarioList();
-                loadScenario('baseline');
-            }
-
-            // Animate panels
-            anime({
-                targets: '.slide-in',
-                translateX: [-50, 0],
-                opacity: [0, 1],
-                duration: 600,
-                delay: anime.stagger(100),
-                easing: 'easeOutQuart'
+            // Check authentication first
+            firebase.auth().onAuthStateChanged((user) => {
+                if (!user) {
+                    console.log('No user authenticated, redirecting to login');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                // User is authenticated, display their email
+                const userEmailEl = document.getElementById('user-email');
+                if (userEmailEl) {
+                    userEmailEl.textContent = user.email;
+                }
+                
+                // Initialize or wait for app from main.js
+                if (!window.app) {
+                    console.log('Waiting for app to initialize...');
+                    const checkApp = setInterval(() => {
+                        if (window.app) {
+                            clearInterval(checkApp);
+                            initializePage();
+                        }
+                    }, 100);
+                } else {
+                    initializePage();
+                }
             });
+
+            function initializePage() {
+                console.log('Scenarios page initialized with app');
+                
+                // Load scenarios from app
+                if (window.app) {
+                    refreshScenarioList();
+                    loadScenario('baseline');
+                }
+
+                // Animate panels
+                if (typeof anime !== 'undefined') {
+                    anime({
+                        targets: '.slide-in',
+                        translateX: [-50, 0],
+                        opacity: [0, 1],
+                        duration: 600,
+                        delay: anime.stagger(100),
+                        easing: 'easeOutQuart'
+                    });
+                }
+            }
         });
 
         // Scenario Management Functions
         function createNewScenario() {
             const name = prompt('Enter scenario name:');
-            if (name) {
+            if (name && window.app) {
                 const scenarioId = app.createScenario(name, currentScenarioId);
                 refreshScenarioList();
                 loadScenario(scenarioId);
@@ -631,7 +677,9 @@
                 alert('Cannot duplicate baseline scenario');
                 return;
             }
-            const name = prompt('Enter new scenario name:', scenarios[currentScenarioId].name + ' Copy');
+            if (!window.app) return;
+            
+            const name = prompt('Enter new scenario name:', app.projectData.scenarios[currentScenarioId].name + ' Copy');
             if (name) {
                 const scenarioId = app.createScenario(name, currentScenarioId);
                 refreshScenarioList();
@@ -644,6 +692,8 @@
                 alert('Cannot delete baseline scenario');
                 return;
             }
+            if (!window.app) return;
+            
             if (confirm('Are you sure you want to delete this scenario?')) {
                 delete app.projectData.scenarios[currentScenarioId];
                 app.saveProjects();
@@ -653,34 +703,30 @@
         }
 
         function saveScenario() {
-            const scenario = scenarios[currentScenarioId];
+            if (!window.app) return;
+            
+            const scenario = app.projectData.scenarios[currentScenarioId];
             if (!scenario) return;
 
             scenario.name = document.getElementById('scenario-name').value;
             scenario.description = document.getElementById('scenario-description').value;
             scenario.isLocked = document.getElementById('scenario-locked').checked;
 
-            // Save budget adjustments
-            const adjustmentInputs = document.querySelectorAll('.adjustment-input');
-            adjustmentInputs.forEach(input => {
-                const categoryId = input.dataset.categoryId;
-                const adjustment = parseFloat(input.value) || 0;
-                // Apply adjustment logic here
-            });
-
-            app.saveProjects();
+            app.debouncedSave();
             refreshScenarioList();
             
-            // Show success message
             showNotification('Scenario saved successfully', 'success');
         }
 
         function applyScenario() {
+            if (!window.app) return;
             app.switchScenario(currentScenarioId);
             showNotification('Scenario applied to project', 'success');
         }
 
         function loadScenario(scenarioId) {
+            if (!window.app) return;
+            
             currentScenarioId = scenarioId;
             const scenario = app.projectData.scenarios[scenarioId];
             if (!scenario) return;
@@ -751,7 +797,6 @@
         function updateScenarioChart() {
             if (!window.app || !app.visualization) return;
             
-            // Create temporary data object for this scenario
             const tempData = {
                 ...app.projectData,
                 currentScenario: currentScenarioId
@@ -780,8 +825,8 @@
             const compareScenarioId = document.getElementById('comparison-scenario').value;
             if (!compareScenarioId || !window.app) return;
 
-            const currentScenario = scenarios[currentScenarioId];
-            const compareScenario = scenarios[compareScenarioId];
+            const currentScenario = app.projectData.scenarios[currentScenarioId];
+            const compareScenario = app.projectData.scenarios[compareScenarioId];
             
             if (!currentScenario || !compareScenario) return;
 
@@ -795,7 +840,7 @@
             
             app.projectData.budgetCategories.forEach(category => {
                 const currentAmount = category.amount;
-                const compareAmount = category.amount; // In real app, this would come from scenario
+                const compareAmount = category.amount;
                 const variance = compareAmount - currentAmount;
                 const variancePercent = currentAmount > 0 ? (variance / currentAmount * 100).toFixed(1) : 0;
                 
@@ -814,7 +859,6 @@
                 tbody.appendChild(row);
             });
 
-            // Add total row
             const totalVariance = totalCompare - totalCurrent;
             const totalVariancePercent = totalCurrent > 0 ? (totalVariance / totalCurrent * 100).toFixed(1) : 0;
             
@@ -831,7 +875,6 @@
             `;
             tbody.appendChild(totalRow);
 
-            // Update impact summary
             const impactSummary = document.getElementById('impact-summary');
             if (impactSummary) {
                 const impact = totalVariance > 0 ? 'increase' : 'decrease';
@@ -843,24 +886,40 @@
         }
 
         function exportComparison() {
-            // In a real app, this would export the comparison data
             showNotification('Comparison exported successfully', 'success');
         }
 
         function showNotification(message, type = 'info') {
-            // Simple notification system
+            const colors = {
+                success: '#27ae60',
+                error: '#e74c3c',
+                warning: '#f39c12',
+                info: '#407EC9'
+            };
+            
             const notification = document.createElement('div');
-            notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 ${
-                type === 'success' ? 'bg-green-500' : 
-                type === 'error' ? 'bg-red-500' : 'bg-blue-500'
-            }`;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${colors[type]};
+                color: white;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                z-index: 2000;
+                font-weight: 600;
+                animation: slideIn 0.3s ease;
+            `;
             notification.textContent = message;
+            
             document.body.appendChild(notification);
             
             setTimeout(() => {
-                notification.remove();
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
             }, 3000);
         }
     </script>
 </body>
-</html>              
+</html>
