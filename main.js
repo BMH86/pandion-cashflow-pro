@@ -131,28 +131,50 @@ function validateBudgetCategory(data) {
 // ============================================================================
 
 class CashflowApp {
-    constructor() {
-        console.log('CashflowApp: Initializing...');
-        
-        // Check authentication
-        if (!window.authManager || !window.authManager.currentUser) {
-            console.log('Not authenticated, redirecting to login');
-            window.location.href = 'login.html';
-            return;
-        }
-        
-        this.currentProjectId = null;
-        this.projects = {};
-        this.projectData = this.getDefaultProjectData();
-        this.unsubscribeCallbacks = [];
-        this.chartInstances = new Map();
-        
-        this.calculations = new CalculationEngine();
-        this.visualization = new VisualizationEngine(this);
-        
-        this.init();
+constructor() {
+    console.log('CashflowApp: Initializing...');
+    
+    this.currentProjectId = null;
+    this.projects = {};
+    this.projectData = this.getDefaultProjectData();
+    this.unsubscribeCallbacks = [];
+    this.chartInstances = new Map();
+    
+    this.calculations = new CalculationEngine();
+    this.visualization = new VisualizationEngine(this);
+    
+    // Wait for auth state before initializing
+    this.waitForAuth();
+}
+/**
+ * Wait for authentication to be determined
+ */
+async waitForAuth() {
+    console.log('Waiting for auth state...');
+    
+    // Check if authManager exists
+    if (!window.authManager) {
+        console.error('AuthManager not found');
+        window.location.href = 'login.html';
+        return;
     }
-
+    
+    // Wait for Firebase auth to be ready
+    return new Promise((resolve) => {
+        const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+            unsubscribe(); // Stop listening after first callback
+            
+            if (user) {
+                console.log('User authenticated, initializing app');
+                this.init();
+                resolve();
+            } else {
+                console.log('No user authenticated, redirecting to login');
+                window.location.href = 'login.html';
+            }
+        });
+    });
+}
     /**
      * Get default project data structure
      * @returns {Object} Default project data
@@ -1720,14 +1742,10 @@ window.toggleDistributionParams = function(method) {
 // APPLICATION INITIALIZATION
 // ============================================================================
 
-// Global app instance (using var to avoid strict mode conflicts)
-var app;  // ✅ Change to var, or remove entirely
-
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing app...');
     try {
-        app = new CashflowApp();
-        window.app = app;
+        window.app = new CashflowApp();  // ✅ Direct assignment
     } catch (error) {
         console.error('App initialization error:', error);
         showNotification('Failed to initialize application', 'error');
