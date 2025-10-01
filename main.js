@@ -894,7 +894,7 @@ class CashflowApp {
                                     <option value="manual" ${category.distributionMethod === 'manual' ? 'selected' : ''}>Manual Input</option>
                                 </select>
                             </div>
-                            <div class="form-group">
+                            <div class="form-group" data-distribution-intensity>
                                 <label>S-Curve Intensity</label>
                                 <input type="range" name="intensity" min="1" max="5" value="${category.distributionParams.intensity || 3}">
                                 <div class="flex justify-between text-sm text-gray-500 mt-1">
@@ -902,7 +902,7 @@ class CashflowApp {
                                     <span>Steep</span>
                                 </div>
                             </div>
-                            <div class="form-row">
+                            <div class="form-row" data-distribution-timing>
                                 <div class="form-group">
                                     <label>Start Month</label>
                                     <input type="number" name="startMonth" value="${category.distributionParams.startMonth || 0}" min="0" data-start-month-input>
@@ -912,6 +912,12 @@ class CashflowApp {
                                     <label>Duration (months)</label>
                                     <input type="number" name="duration" value="${category.distributionParams.duration || 12}" min="1">
                                 </div>
+                            </div>
+                            <div class="form-group" data-manual-distribution style="display: none;">
+                                <label>Manual Distribution Entries</label>
+                                <div class="manual-distribution-rows" data-manual-distribution-rows></div>
+                                <button type="button" class="btn-secondary" data-add-manual-row>Add Manual Entry</button>
+                                <span class="form-helper-text">Specify custom month and amount pairs for manual distributions.</span>
                             </div>
                             <div class="form-actions">
                                 <button type="button" onclick="app.closeModal()" class="btn-secondary">Cancel</button>
@@ -933,26 +939,41 @@ class CashflowApp {
                 if (firstInput) firstInput.focus();
             }, 100);
             
-            document.getElementById('edit-budget-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const categoryId = parseInt(e.target.dataset.categoryId);
-                
-                this.updateBudgetCategory(categoryId, {
-                    code: formData.get('code'),
-                    name: formData.get('name'),
-                    amount: parseFloat(formData.get('amount')),
-                    costType: formData.get('costType'),
-                    distributionMethod: formData.get('distributionMethod'),
-                    distributionParams: {
+            const editForm = document.getElementById('edit-budget-form');
+            if (editForm) {
+                this.initializeDistributionForm(editForm, {
+                    distributionMethod: category.distributionMethod,
+                    manualDistribution: (category.distributionParams && category.distributionParams.manualDistribution) || category.manualDistribution || {}
+                });
+
+                editForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.target);
+                    const categoryId = parseInt(e.target.dataset.categoryId);
+                    const distributionMethod = formData.get('distributionMethod');
+
+                    const distributionParams = {
                         intensity: parseInt(formData.get('intensity')),
                         startMonth: parseInt(formData.get('startMonth')),
                         duration: parseInt(formData.get('duration'))
+                    };
+
+                    if (distributionMethod === 'manual') {
+                        distributionParams.manualDistribution = this.collectManualDistribution(e.target);
                     }
+
+                    this.updateBudgetCategory(categoryId, {
+                        code: formData.get('code'),
+                        name: formData.get('name'),
+                        amount: parseFloat(formData.get('amount')),
+                        costType: formData.get('costType'),
+                        distributionMethod,
+                        distributionParams
+                    });
+
+                    this.closeModal();
                 });
-                
-                this.closeModal();
-            });
+            }
         }
     }
 
@@ -1380,7 +1401,6 @@ class CashflowApp {
                             <label>Distribution Method</label>
                             <select name="distributionMethod"
                                     required
-                                    onchange="toggleDistributionParams(this.value)"
                                     data-tooltip="How spending is distributed over time">
                                 <option value="s-curve" ${defaultMethod === 's-curve' ? 'selected' : ''}>S-Curve Distribution</option>
                                 <option value="straight-line" ${defaultMethod === 'straight-line' ? 'selected' : ''}>Straight Line</option>
@@ -1389,7 +1409,7 @@ class CashflowApp {
                         </div>
 
                         <div id="distribution-params">
-                            <div class="form-group">
+                            <div class="form-group" data-distribution-intensity>
                                 <label>S-Curve Intensity</label>
                                 <input type="range" name="intensity" min="1" max="5" value="${defaultIntensity}">
                                 <div class="flex justify-between text-sm text-gray-500 mt-1">
@@ -1397,7 +1417,7 @@ class CashflowApp {
                                     <span>Steep</span>
                                 </div>
                             </div>
-                            <div class="grid grid-cols-2 gap-4">
+                            <div class="grid grid-cols-2 gap-4" data-distribution-timing>
                                 <div class="form-group">
                                     <label>Start Month</label>
                                     <input type="number" name="startMonth" min="0" value="0" data-start-month-input>
@@ -1408,6 +1428,13 @@ class CashflowApp {
                                     <input type="number" name="duration" min="1" value="12">
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="form-group" data-manual-distribution style="display: none;">
+                            <label>Manual Distribution Entries</label>
+                            <div class="manual-distribution-rows" data-manual-distribution-rows></div>
+                            <button type="button" class="btn-secondary" data-add-manual-row>Add Manual Entry</button>
+                            <span class="form-helper-text">Specify custom month and amount pairs for manual distributions.</span>
                         </div>
                         
                         <div class="form-actions">
@@ -1433,20 +1460,22 @@ class CashflowApp {
             if (firstInput) firstInput.focus();
         }, 100);
         
-        document.getElementById('add-budget-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleAddBudgetForm(e.target);
-        });
+        const addForm = document.getElementById('add-budget-form');
+        if (addForm) {
+            addForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleAddBudgetForm(e.target);
+            });
+        }
 
         setTimeout(() => {
             modal.querySelectorAll('[data-tooltip]').forEach(el => this.addTooltip(el));
         }, 100);
 
-        const distributionSelect = modal.querySelector('select[name="distributionMethod"]');
-        if (distributionSelect) {
-            distributionSelect.value = defaultMethod;
-            toggleDistributionParams(distributionSelect.value);
-        }
+        this.initializeDistributionForm(addForm, {
+            distributionMethod: defaultMethod,
+            manualDistribution: {}
+        });
 
         const intensityInput = modal.querySelector('input[name="intensity"]');
         if (intensityInput) {
@@ -1454,6 +1483,131 @@ class CashflowApp {
         }
 
         this.updateTimelineHints(modal);
+    }
+
+    initializeDistributionForm(form, options = {}) {
+        if (!form) return;
+
+        const {
+            distributionMethod = 's-curve',
+            manualDistribution = {}
+        } = options;
+
+        const methodSelect = form.querySelector('select[name="distributionMethod"]');
+        const manualContainer = form.querySelector('[data-manual-distribution-rows]');
+        const addManualButton = form.querySelector('[data-add-manual-row]');
+
+        if (manualContainer) {
+            manualContainer.innerHTML = '';
+
+            const manualEntries = manualDistribution && typeof manualDistribution === 'object'
+                ? Object.entries(manualDistribution).sort((a, b) => Number(a[0]) - Number(b[0]))
+                : [];
+
+            if (manualEntries.length > 0) {
+                manualEntries.forEach(([month, amount]) => {
+                    this.addManualDistributionRow(manualContainer, { month, amount });
+                });
+            } else {
+                this.addManualDistributionRow(manualContainer);
+            }
+        }
+
+        if (addManualButton && manualContainer) {
+            addManualButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                this.addManualDistributionRow(manualContainer);
+            });
+        }
+
+        if (methodSelect) {
+            methodSelect.value = distributionMethod;
+            methodSelect.addEventListener('change', () => {
+                toggleDistributionParams(methodSelect.value, form);
+            });
+        }
+
+        toggleDistributionParams(distributionMethod, form);
+    }
+
+    addManualDistributionRow(container, values = {}) {
+        if (!container) return;
+
+        const row = document.createElement('div');
+        row.className = 'manual-entry-row flex gap-2 items-end';
+        row.dataset.manualRow = 'true';
+
+        const monthGroup = document.createElement('div');
+        monthGroup.className = 'form-group';
+        const monthLabel = document.createElement('label');
+        monthLabel.textContent = 'Month';
+        const monthInput = document.createElement('input');
+        monthInput.type = 'number';
+        monthInput.min = '0';
+        monthInput.setAttribute('data-manual-month', '');
+        if (values.month !== undefined && values.month !== null && values.month !== '') {
+            monthInput.value = Number(values.month);
+        }
+        monthGroup.appendChild(monthLabel);
+        monthGroup.appendChild(monthInput);
+
+        const amountGroup = document.createElement('div');
+        amountGroup.className = 'form-group';
+        const amountLabel = document.createElement('label');
+        amountLabel.textContent = 'Amount';
+        const amountInput = document.createElement('input');
+        amountInput.type = 'number';
+        amountInput.min = '0';
+        amountInput.step = '0.01';
+        amountInput.setAttribute('data-manual-amount', '');
+        if (values.amount !== undefined && values.amount !== null && values.amount !== '') {
+            amountInput.value = Number(values.amount);
+        }
+        amountGroup.appendChild(amountLabel);
+        amountGroup.appendChild(amountInput);
+
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'btn-icon';
+        removeButton.setAttribute('data-remove-manual-row', '');
+        removeButton.title = 'Remove entry';
+        removeButton.textContent = '✕';
+
+        removeButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            row.remove();
+        });
+
+        row.appendChild(monthGroup);
+        row.appendChild(amountGroup);
+        row.appendChild(removeButton);
+
+        container.appendChild(row);
+    }
+
+    collectManualDistribution(form) {
+        if (!form) return {};
+
+        const manualDistribution = {};
+        const rows = form.querySelectorAll('[data-manual-row]');
+
+        rows.forEach(row => {
+            const monthInput = row.querySelector('[data-manual-month]');
+            const amountInput = row.querySelector('[data-manual-amount]');
+
+            if (!monthInput || !amountInput) {
+                return;
+            }
+
+            const month = parseInt(monthInput.value, 10);
+            const amount = parseFloat(amountInput.value);
+
+            if (Number.isFinite(month) && !Number.isNaN(amount)) {
+                manualDistribution[month] = amount;
+            }
+        });
+
+        return manualDistribution;
     }
 
     handleAddBudgetForm(form) {
@@ -1468,6 +1622,10 @@ class CashflowApp {
             startMonth: parseInt(formData.get('startMonth')) || 0,
             duration: parseInt(formData.get('duration')) || 12
         };
+
+        if (selectedMethod === 'manual') {
+            distributionParams.manualDistribution = this.collectManualDistribution(form);
+        }
 
         this.addBudgetCategory(
             formData.get('code'),
@@ -1926,10 +2084,25 @@ class VisualizationEngine {
 // HELPER FUNCTIONS
 // ============================================================================
 
-window.toggleDistributionParams = function(method) {
-    const paramsDiv = document.getElementById('distribution-params');
-    if (paramsDiv) {
-        paramsDiv.style.display = method === 's-curve' ? 'block' : 'none';
+window.toggleDistributionParams = function(method, form) {
+    const targetForm = form || document.querySelector('#add-budget-form') || document.querySelector('#edit-budget-form');
+    if (!targetForm) return;
+
+    const normalizedMethod = method || 's-curve';
+    const intensityGroup = targetForm.querySelector('[data-distribution-intensity]');
+    const timingGroup = targetForm.querySelector('[data-distribution-timing]');
+    const manualGroup = targetForm.querySelector('[data-manual-distribution]');
+
+    if (intensityGroup) {
+        intensityGroup.style.display = normalizedMethod === 's-curve' ? '' : 'none';
+    }
+
+    if (timingGroup) {
+        timingGroup.style.display = normalizedMethod === 'manual' ? 'none' : '';
+    }
+
+    if (manualGroup) {
+        manualGroup.style.display = normalizedMethod === 'manual' ? '' : 'none';
     }
 };
 
