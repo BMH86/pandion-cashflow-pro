@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Settings - Cashflow Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <link href="https://unpkg.com/splitting@1.0.6/dist/splitting.css" rel="stylesheet">
+    <script src="https://unpkg.com/splitting@1.0.6/dist/splitting.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        :root {
+            --primary-color: #2C3E50;
+            --secondary-color: #E67E22;
+            --accent-color: #16A085;
+            --warning-color: #F39C12;
+            --error-color: #E74C3C;
+            --success-color: #27AE60;
+            --light-gray: #ECF0F1;
+            --medium-gray: #95A5A6;
+            --dark-gray: #34495E;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            color: var(--primary-color);
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--light-gray);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo {
+            width: 40px;
+            height: 40px;
+            background: var(--primary-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .app-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .nav-tab {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            text-decoration: none;
+            color: var(--medium-gray);
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .nav-tab:hover {
+            background: var(--light-gray);
+            color: var(--primary-color);
+        }
+
+        .nav-tab.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .settings-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--light-gray);
+            transition: all 0.3s ease;
+        }
+
+        .panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .panel-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 0.75rem;
+            border: 1px solid var(--light-gray);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(230, 126, 34, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .logo-upload {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-preview {
+            width: 120px;
+            height: 120px;
+            border: 2px dashed var(--light-gray);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--light-gray);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+
+        .logo-preview:hover {
+            border-color: var(--secondary-color);
+            background: rgba(230, 126, 34, 0.05);
+        }
+
+        .logo-preview.has-logo {
+            border-style: solid;
+            background: white;
+        }
+
+        .logo-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .logo-placeholder {
+            text-align: center;
+            color: var(--medium-gray);
+            font-size: 12px;
+        }
+
+        .color-picker-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .color-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .color-input {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .color-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--medium-gray);
+        }
+
+        .data-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .action-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            padding: 0.75rem 1.5rem;
+            background: var(--light-gray);
+            border: 1px solid var(--medium-gray);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .file-label:hover {
+            background: var(--medium-gray);
+            color: white;
+        }
+
+        .btn-primary {
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .btn-primary:hover {
+            background: #d35400;
+            transform: scale(1.02);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--primary-color);
+            border: 1px solid var(--light-gray);
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .btn-secondary:hover {
+            background: var(--light-gray);
+        }
+
+        .btn-danger {
+            background: var(--error-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+            transform: scale(1.02);
+        }
+
+        @media (max-width: 968px) {
+            .settings-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 1rem;
+            }
+            
+            .header {
+                padding: 1rem;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .notification {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: var(--success-color);
+        }
+
+        .notification.error {
+            background: var(--error-color);
+        }
+
+        .notification.info {
+            background: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo">CF</div>
+                    <h1 class="app-title">Cashflow Pro</h1>
+                </div>
+                
+                <nav class="nav-tabs">
+                    <a href="index.html" class="nav-tab" data-page="index">Dashboard</a>
+                    <a href="scenarios.html" class="nav-tab" data-page="scenarios">Scenarios</a>
+                    <a href="reports.html" class="nav-tab" data-page="reports">Reports</a>
+                    <a href="settings.html" class="nav-tab active" data-page="settings">Settings</a>
+                </nav>
+                
+                <div class="user-section">
+                    <span id="user-email">Project Manager</span>
+                    <div class="logo" style="width: 32px; height: 32px; font-size: 14px;">PM</div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="settings-layout">
+                <div class="panel slide-in">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Project Information</h2>
+                        <button onclick="saveProjectInfo()" class="btn-primary">Save</button>
+                    </div>
+                    <form class="form" id="project-form">
+                        <div class="form-group">
+                            <label>Project Name</label>
+                            <input type="text" id="project-name" placeholder="Enter project name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Client Name</label>
+                            <input type="text" id="client-name" placeholder="Enter client name">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Project Location</label>
+                            <input type="text" id="project-location" placeholder="Enter project location">
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Start Date</label>
+                                <input type="date" id="start-date">
+                            </div>
+                            <div class="form-group">
+                                <label>End Date</label>
+                                <input type="date" id="end-date">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Project Manager</label>
+                            <input type="text" id="project-manager" placeholder="Enter project manager name">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Project Description</label>
+                            <textarea id="project-description" placeholder="Enter project description"></textarea>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="panel slide-in">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Branding Configuration</h2>
+                        <button onclick="saveBranding()" class="btn-primary">Save</button>
+                    </div>
+                    <form class="form" id="branding-form">
+                        <div class="form-group">
+                            <label>Company Logo</label>
+                            <div class="logo-upload">
+                                <div class="logo-preview" id="logo-preview" onclick="document.getElementById('logo-input').click()">
+                                    <div class="logo-placeholder">
+                                        <div style="font-size: 24px; margin-bottom: 0.5rem;">📷</div>
+                                        <div>Click to upload logo</div>
+                                    </div>
+                                </div>
+                                <input type="file" id="logo-input" class="file-input" accept="image/*" onchange="handleLogoUpload(event)">
+                                <small class="text-gray-500">Recommended: PNG format, 200x200px</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Brand Colors</label>
+                            <div class="color-picker-group">
+                                <div class="color-item">
+                                    <input type="color" id="primary-color" class="color-input" value="#2C3E50">
+                                    <div class="color-label">Primary</div>
+                                </div>
+                                <div class="color-item">
+                                    <input type="color" id="secondary-color" class="color-input" value="#E67E22">
+                                    <div class="color-label">Secondary</div>
+                                </div>
+                                <div class="color-item">
+                                    <input type="color" id="accent-color" class="color-input" value="#16A085">
+                                    <div class="color-label">Accent</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Report Template</label>
+                            <select id="report-template">
+                                <option value="standard">Standard Template</option>
+                                <option value="detailed">Detailed Template</option>
+                                <option value="summary">Summary Template</option>
+                                <option value="custom">Custom Template</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="show-logo"> Show logo on reports
+                            </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="show-watermark"> Add watermark to reports
+                            </label>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="panel slide-in">
+                    <div class="panel-header">
+                        <h2 class="panel-title">System Settings</h2>
+                        <button onclick="saveSystemSettings()" class="btn-primary">Save</button>
+                    </div>
+                    <form class="form" id="system-form">
+                        <div class="form-group">
+                            <label>Default Projection Method</label>
+                            <select id="default-method">
+                                <option value="s-curve">S-Curve Distribution</option>
+                                <option value="straight-line">Straight Line</option>
+                                <option value="manual">Manual Input</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Currency Format</label>
+                            <select id="currency-format">
+                                <option value="USD">USD ($)</option>
+                                <option value="EUR">EUR (€)</option>
+                                <option value="GBP">GBP (£)</option>
+                                <option value="CAD">CAD (C$)</option>
+                                <option value="AUD">AUD (A$)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Number Format</label>
+                            <select id="number-format">
+                                <option value="1,234.56">1,234.56</option>
+                                <option value="1.234,56">1.234,56</option>
+                                <option value="1 234.56">1 234.56</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Date Format</label>
+                            <select id="date-format">
+                                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Default S-Curve Intensity</label>
+                            <input type="range" id="default-intensity" min="1" max="5" value="3">
+                            <div class="flex justify-between text-sm text-gray-500 mt-1">
+                                <span>Flat</span>
+                                <span>Steep</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Auto-save Interval (minutes)</label>
+                            <input type="number" id="autosave-interval" min="1" max="60" value="5">
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="enable-autosave"> Enable auto-save
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="enable-notifications"> Enable notifications
+                            </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="dark-mode"> Enable dark mode
+                            </label>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="panel slide-in">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Data Management</h2>
+                    </div>
+                    <div class="data-actions">
+                        <div class="action-group">
+                            <label class="file-label" for="import-file">
+                                📁 Import Project Data
+                            </label>
+                            <input type="file" id="import-file" class="file-input" accept=".json" onchange="importData(event)">
+                            <small class="text-gray-500">Supported format: Cashflow Pro JSON export</small>
+                        </div>
+                        
+                        <div class="action-group">
+                            <button onclick="exportProjectData()" class="btn-secondary">
+                                💾 Export Project Data
+                            </button>
+                            <small class="text-gray-500">Download all project data as JSON</small>
+                        </div>
+                        
+                        <div class="action-group">
+                            <button onclick="createBackup()" class="btn-secondary">
+                                🔒 Create Backup
+                            </button>
+                            <small class="text-gray-500">Create a complete backup of all data</small>
+                        </div>
+                        
+                        <div class="action-group">
+                            <button onclick="resetToDefaults()" class="btn-danger">
+                                🔄 Reset to Defaults
+                            </button>
+                            <small class="text-gray-500">⚠️ This will erase all current data</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="main.js"></script>
+    <script>
+        // ============================================================================
+        // FIXED: PAGE INITIALIZATION WITH AUTH CHECK
+        // ============================================================================
+        let autosaveTimerId = null;
+
+        const SYSTEM_SETTINGS_DEFAULTS = Object.freeze({
+            defaultMethod: 's-curve',
+            currencyFormat: 'USD',
+            numberFormat: '1,234.56',
+            dateFormat: 'MM/DD/YYYY',
+            defaultIntensity: '3',
+            autosaveInterval: '5',
+            enableNotifications: false,
+            darkMode: false,
+            enableAutosave: false
+        });
+
+        function cloneSystemDefaults() {
+            return { ...SYSTEM_SETTINGS_DEFAULTS };
+        }
+
+        function parseStoredSystemSettings() {
+            const defaults = cloneSystemDefaults();
+            const rawValue = localStorage.getItem('cashflow_settings');
+
+            if (!rawValue) {
+                return { settings: defaults, rawValue: null, error: null };
+            }
+
+            try {
+                const parsed = JSON.parse(rawValue);
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    return { settings: { ...defaults, ...parsed }, rawValue, error: null };
+                }
+
+                return {
+                    settings: defaults,
+                    rawValue,
+                    error: new Error('Stored settings are not an object')
+                };
+            } catch (error) {
+                return { settings: defaults, rawValue, error };
+            }
+        }
+
+        function getStoredSystemSettings() {
+            return parseStoredSystemSettings().settings;
+        }
+
+        function updateAutoSaveTimer() {
+            if (autosaveTimerId) {
+                clearInterval(autosaveTimerId);
+                autosaveTimerId = null;
+            }
+
+            const settings = (window.app && window.app.systemSettings)
+                ? window.app.systemSettings
+                : getStoredSystemSettings();
+
+            if (!settings.enableAutosave) {
+                return;
+            }
+
+            const intervalMinutes = parseFloat(settings.autosaveInterval);
+            if (!Number.isFinite(intervalMinutes) || intervalMinutes <= 0) {
+                return;
+            }
+
+            const intervalMs = Math.max(intervalMinutes, 1) * 60 * 1000;
+
+            autosaveTimerId = setInterval(() => {
+                const appInstance = window.app;
+                if (appInstance) {
+                    appInstance.debouncedSave();
+                }
+            }, intervalMs);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check authentication first
+            firebase.auth().onAuthStateChanged((user) => {
+                if (!user) {
+                    console.log('No user authenticated, redirecting to login');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                // Display user email
+                const userEmailEl = document.getElementById('user-email');
+                if (userEmailEl) {
+                    userEmailEl.textContent = user.email;
+                }
+                
+                // Initialize or wait for app
+                if (!window.app) {
+                    console.log('Waiting for app to initialize...');
+                    const checkApp = setInterval(() => {
+                        if (window.app) {
+                            clearInterval(checkApp);
+                            initializePage();
+                        }
+                    }, 100);
+                } else {
+                    initializePage();
+                }
+            });
+
+            function initializePage() {
+                console.log('Settings page initialized with app');
+
+                loadSettings();
+                updateAutoSaveTimer();
+
+                if (typeof anime !== 'undefined') {
+                    anime({
+                        targets: '.slide-in',
+                        translateX: [-50, 0],
+                        opacity: [0, 1],
+                        duration: 600,
+                        delay: anime.stagger(100),
+                        easing: 'easeOutQuart'
+                    });
+                }
+            }
+        });
+
+        function loadSettings() {
+            const appInstance = window.app;
+            if (!appInstance) return;
+
+            const projectInfo = appInstance.projectData.info;
+
+            document.getElementById('project-name').value = projectInfo.name || '';
+            document.getElementById('client-name').value = projectInfo.client || '';
+            document.getElementById('project-location').value = projectInfo.location || '';
+            document.getElementById('project-manager').value = projectInfo.manager || '';
+            document.getElementById('project-description').value = projectInfo.description || '';
+
+            const startDateInput = document.getElementById('start-date');
+            const endDateInput = document.getElementById('end-date');
+
+            const toDateInputValue = (value) => {
+                if (!value) return '';
+
+                let dateValue = value;
+                if (typeof value?.toDate === 'function') {
+                    dateValue = value.toDate();
+                } else if (!(value instanceof Date)) {
+                    dateValue = new Date(value);
+                }
+
+                if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+                    return dateValue.toISOString().split('T')[0];
+                }
+
+                return '';
+            };
+
+            const startDateValue = toDateInputValue(projectInfo.startDate);
+            startDateInput.value = startDateValue;
+
+            const endDateValue = toDateInputValue(projectInfo.endDate);
+            endDateInput.value = endDateValue;
+
+            if (projectInfo.colors) {
+                document.getElementById('primary-color').value = projectInfo.colors.primary || '#2C3E50';
+                document.getElementById('secondary-color').value = projectInfo.colors.secondary || '#E67E22';
+                document.getElementById('accent-color').value = projectInfo.colors.accent || '#16A085';
+            }
+
+            if (projectInfo.logo) {
+                const logoPreview = document.getElementById('logo-preview');
+                logoPreview.innerHTML = `<img src="${projectInfo.logo}" alt="Company Logo">`;
+                logoPreview.classList.add('has-logo');
+            }
+
+            const { settings: parsedSettings, error: settingsError } = parseStoredSystemSettings();
+            const defaults = typeof appInstance.getSystemSettingsDefaults === 'function'
+                ? appInstance.getSystemSettingsDefaults()
+                : cloneSystemDefaults();
+
+            const normalizedSettings = { ...defaults, ...parsedSettings };
+
+            const validMethods = ['s-curve', 'straight-line', 'manual'];
+            if (!validMethods.includes(normalizedSettings.defaultMethod)) {
+                normalizedSettings.defaultMethod = defaults.defaultMethod;
+            }
+
+            const intensityValue = parseInt(normalizedSettings.defaultIntensity, 10);
+            normalizedSettings.defaultIntensity = Number.isFinite(intensityValue)
+                ? String(Math.min(Math.max(intensityValue, 1), 5))
+                : defaults.defaultIntensity;
+
+            const autosaveIntervalNumber = parseFloat(normalizedSettings.autosaveInterval);
+            normalizedSettings.autosaveInterval = Number.isFinite(autosaveIntervalNumber) && autosaveIntervalNumber > 0
+                ? String(normalizedSettings.autosaveInterval)
+                : defaults.autosaveInterval;
+
+            normalizedSettings.currencyFormat = normalizedSettings.currencyFormat || defaults.currencyFormat;
+            normalizedSettings.numberFormat = normalizedSettings.numberFormat || defaults.numberFormat;
+            normalizedSettings.dateFormat = normalizedSettings.dateFormat || defaults.dateFormat;
+            normalizedSettings.enableAutosave = !!normalizedSettings.enableAutosave;
+            normalizedSettings.enableNotifications = !!normalizedSettings.enableNotifications;
+            normalizedSettings.darkMode = !!normalizedSettings.darkMode;
+
+            if (settingsError) {
+                console.warn('Unable to parse stored settings, falling back to defaults.', settingsError);
+                if (typeof showNotification === 'function') {
+                    showNotification('Stored system settings were corrupted. Defaults restored.', 'warning');
+                }
+            }
+
+            const defaultMethodInput = document.getElementById('default-method');
+            const currencyFormatInput = document.getElementById('currency-format');
+            const numberFormatInput = document.getElementById('number-format');
+            const dateFormatInput = document.getElementById('date-format');
+            const intensityInput = document.getElementById('default-intensity');
+            const autosaveIntervalInput = document.getElementById('autosave-interval');
+            const enableAutosaveInput = document.getElementById('enable-autosave');
+            const notificationsInput = document.getElementById('enable-notifications');
+            const darkModeInput = document.getElementById('dark-mode');
+
+            if (defaultMethodInput) defaultMethodInput.value = normalizedSettings.defaultMethod;
+            if (currencyFormatInput) currencyFormatInput.value = normalizedSettings.currencyFormat;
+            if (numberFormatInput) numberFormatInput.value = normalizedSettings.numberFormat;
+            if (dateFormatInput) dateFormatInput.value = normalizedSettings.dateFormat;
+            if (intensityInput) intensityInput.value = normalizedSettings.defaultIntensity;
+            if (autosaveIntervalInput) autosaveIntervalInput.value = normalizedSettings.autosaveInterval;
+            if (enableAutosaveInput) enableAutosaveInput.checked = normalizedSettings.enableAutosave;
+            if (notificationsInput) notificationsInput.checked = normalizedSettings.enableNotifications;
+            if (darkModeInput) darkModeInput.checked = normalizedSettings.darkMode;
+
+            if (typeof appInstance.applySystemSettings === 'function') {
+                appInstance.applySystemSettings(normalizedSettings);
+            } else {
+                appInstance.systemSettings = normalizedSettings;
+                if (normalizedSettings.darkMode) {
+                    document.documentElement.classList.add('theme-dark');
+                    document.body.classList.add('theme-dark');
+                } else {
+                    document.documentElement.classList.remove('theme-dark');
+                    document.body.classList.remove('theme-dark');
+                }
+            }
+        }
+
+        function saveProjectInfo() {
+            const appInstance = window.app;
+            if (!appInstance) return;
+
+            const projectInfo = appInstance.projectData.info;
+            
+            const name = document.getElementById('project-name').value;
+            const client = document.getElementById('client-name').value;
+            const location = document.getElementById('project-location').value;
+            const manager = document.getElementById('project-manager').value;
+            const description = document.getElementById('project-description').value;
+
+            const startDateRaw = document.getElementById('start-date').value;
+            const endDateRaw = document.getElementById('end-date').value;
+
+            const parseDateInput = (value) => {
+                if (!value) return null;
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime()) ? null : parsed;
+            };
+
+            const startDate = parseDateInput(startDateRaw);
+            const endDate = parseDateInput(endDateRaw);
+
+            const updatedInfo = {
+                ...projectInfo,
+                name,
+                client,
+                location,
+                manager,
+                description,
+                startDate,
+                endDate
+            };
+
+            if (typeof validateProjectInfo === 'function') {
+                const validationErrors = validateProjectInfo(updatedInfo);
+                if (validationErrors.length > 0) {
+                    validationErrors.forEach((error) => showNotification(error, 'warning'));
+                    return;
+                }
+            }
+
+            projectInfo.name = name;
+            projectInfo.client = client;
+            projectInfo.location = location;
+            projectInfo.manager = manager;
+            projectInfo.description = description;
+            projectInfo.startDate = startDate;
+            projectInfo.endDate = endDate;
+
+            appInstance.debouncedSave();
+            showNotification('Project information saved successfully', 'success');
+        }
+
+        function saveBranding() {
+            const appInstance = window.app;
+            if (!appInstance) return;
+
+            const projectInfo = appInstance.projectData.info;
+            
+            projectInfo.colors = {
+                primary: document.getElementById('primary-color').value,
+                secondary: document.getElementById('secondary-color').value,
+                accent: document.getElementById('accent-color').value
+            };
+
+            appInstance.debouncedSave();
+            showNotification('Branding configuration saved successfully', 'success');
+        }
+
+        function saveSystemSettings() {
+            if (!window.app) return;
+
+            const settings = {
+                defaultMethod: document.getElementById('default-method').value,
+                currencyFormat: document.getElementById('currency-format').value,
+                numberFormat: document.getElementById('number-format').value,
+                dateFormat: document.getElementById('date-format').value,
+                defaultIntensity: document.getElementById('default-intensity').value,
+                autosaveInterval: document.getElementById('autosave-interval').value,
+                enableAutosave: document.getElementById('enable-autosave').checked,
+                enableNotifications: document.getElementById('enable-notifications').checked,
+                darkMode: document.getElementById('dark-mode').checked
+            };
+
+            localStorage.setItem('cashflow_settings', JSON.stringify(settings));
+            if (typeof window.app.applySystemSettings === 'function') {
+                window.app.applySystemSettings(settings);
+            }
+            updateAutoSaveTimer();
+            showNotification('System settings saved successfully', 'success');
+        }
+
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const logoPreview = document.getElementById('logo-preview');
+                logoPreview.innerHTML = `<img src="${e.target.result}" alt="Company Logo">`;
+                logoPreview.classList.add('has-logo');
+                
+                const appInstance = window.app;
+                if (appInstance) {
+                    appInstance.projectData.info.logo = e.target.result;
+                    appInstance.debouncedSave();
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function exportProjectData() {
+            const appInstance = window.app;
+            if (!appInstance) return;
+
+            const data = {
+                projectData: appInstance.projectData,
+                exportDate: new Date().toISOString(),
+                version: '1.0'
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `cashflow-project-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+
+            showNotification('Project data exported successfully', 'success');
+        }
+
+        function isPlainObject(value) {
+            return typeof value === 'object' && value !== null && !Array.isArray(value);
+        }
+
+        function validateImportedProjectPayload(rawPayload, appInstance) {
+            if (!isPlainObject(rawPayload)) {
+                return { valid: false, errors: ['File does not contain a valid JSON object.'] };
+            }
+
+            const payloadProjectData = rawPayload.projectData && isPlainObject(rawPayload.projectData)
+                ? rawPayload.projectData
+                : rawPayload;
+
+            if (!isPlainObject(payloadProjectData)) {
+                return { valid: false, errors: ['JSON file must include a "projectData" object.'] };
+            }
+
+            const errors = [];
+            const info = payloadProjectData.info;
+            if (!isPlainObject(info)) {
+                errors.push('Missing project info section.');
+            } else if (!info.name || typeof info.name !== 'string' || info.name.trim() === '') {
+                errors.push('Project name is required.');
+            }
+
+            const categories = payloadProjectData.budgetCategories;
+            if (!Array.isArray(categories)) {
+                errors.push('"budgetCategories" must be an array.');
+            } else if (!categories.every(isPlainObject)) {
+                errors.push('Each budget category must be an object.');
+            }
+
+            const rawScenarios = payloadProjectData.scenarios;
+            if (!isPlainObject(rawScenarios) || Object.keys(rawScenarios).length === 0) {
+                errors.push('At least one scenario is required.');
+            }
+
+            const sanitizedScenarios = {};
+            if (isPlainObject(rawScenarios)) {
+                Object.entries(rawScenarios).forEach(([scenarioId, scenarioValue]) => {
+                    if (!isPlainObject(scenarioValue)) {
+                        errors.push(`Scenario "${scenarioId}" is not a valid object.`);
+                        return;
+                    }
+
+                    sanitizedScenarios[scenarioId] = {
+                        name: typeof scenarioValue.name === 'string' && scenarioValue.name.trim() ? scenarioValue.name : scenarioId,
+                        projections: isPlainObject(scenarioValue.projections) ? scenarioValue.projections : {},
+                        actuals: isPlainObject(scenarioValue.actuals) ? scenarioValue.actuals : {},
+                        isLocked: Boolean(scenarioValue.isLocked)
+                    };
+                });
+            }
+
+            const currentScenario = payloadProjectData.currentScenario;
+            if (typeof currentScenario !== 'string' || !currentScenario.trim()) {
+                errors.push('"currentScenario" must be a scenario id string.');
+            } else if (sanitizedScenarios && !sanitizedScenarios[currentScenario]) {
+                errors.push(`Scenario "${currentScenario}" is missing from the data.`);
+            }
+
+            if (errors.length > 0) {
+                return { valid: false, errors };
+            }
+
+            const appDefaults = (appInstance && typeof appInstance.getDefaultProjectData === 'function')
+                ? appInstance.getDefaultProjectData()
+                : {
+                    info: {},
+                    budgetCategories: [],
+                    scenarios: {},
+                    currentScenario: currentScenario
+                };
+
+            const sanitizedProjectData = {
+                ...payloadProjectData,
+                info: { ...(appDefaults.info || {}), ...info },
+                budgetCategories: categories.map(category => ({ ...category })),
+                scenarios: sanitizedScenarios,
+                currentScenario
+            };
+
+            return { valid: true, projectData: sanitizedProjectData };
+        }
+
+        function importData(event) {
+            const input = event.target;
+            const file = input.files && input.files[0];
+            if (!file) return;
+
+            const appInstance = window.app;
+            if (!appInstance) {
+                showNotification('Import failed: the application is still loading.', 'error');
+                input.value = '';
+                return;
+            }
+
+            if (!file.name.toLowerCase().endsWith('.json')) {
+                showNotification('Import failed: only Cashflow Pro JSON exports are supported.', 'error');
+                input.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+
+            reader.onerror = () => {
+                showNotification(`Import failed: unable to read ${file.name}.`, 'error');
+                input.value = '';
+            };
+
+            reader.onload = function(e) {
+                let parsed;
+                try {
+                    parsed = JSON.parse(e.target.result);
+                } catch (error) {
+                    console.error('Import failed: invalid JSON.', error);
+                    showNotification('Import failed: the selected file is not valid JSON.', 'error');
+                    input.value = '';
+                    return;
+                }
+
+                const validationResult = validateImportedProjectPayload(parsed, appInstance);
+                if (!validationResult.valid) {
+                    const errorMessage = validationResult.errors.join(' ');
+                    showNotification(`Import failed: ${errorMessage}`, 'error');
+                    input.value = '';
+                    return;
+                }
+
+                if (!confirm('This will replace all current project data. Are you sure?')) {
+                    input.value = '';
+                    return;
+                }
+
+                appInstance.projectData = validationResult.projectData;
+                appInstance.debouncedSave();
+                loadSettings();
+                showNotification('Project data imported successfully from JSON.', 'success');
+                input.value = '';
+            };
+
+            reader.readAsText(file);
+        }
+
+        function createBackup() {
+            const appInstance = window.app;
+            if (!appInstance) return;
+
+            const backup = {
+                projectData: appInstance.projectData,
+                settings: localStorage.getItem('cashflow_settings'),
+                timestamp: new Date().toISOString(),
+                version: '1.0'
+            };
+
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `cashflow-backup-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+
+            showNotification('Backup created successfully', 'success');
+        }
+
+        function resetToDefaults() {
+            if (confirm('⚠️ This will erase all current data and reset to defaults. This action cannot be undone. Are you sure?')) {
+                if (confirm('This is your final warning. All data will be lost. Continue?')) {
+                    localStorage.clear();
+                    location.reload();
+                }
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    notification.remove();
+                }, 300);
+            }, 3000);
+        }
+
+        updateAutoSaveTimer();
+    </script>
+</body>
+</html>
