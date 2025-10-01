@@ -647,8 +647,8 @@
                             <label class="file-label" for="import-file">
                                 📁 Import Project Data
                             </label>
-                            <input type="file" id="import-file" class="file-input" accept=".json,.csv,.xlsx" onchange="importData(event)">
-                            <small class="text-gray-500">Supported formats: JSON, CSV, Excel</small>
+                            <input type="file" id="import-file" class="file-input" accept=".json" onchange="importData(event)">
+                            <small class="text-gray-500">Supported format: Cashflow Pro JSON export</small>
                         </div>
                         
                         <div class="action-group">
@@ -1061,32 +1061,147 @@
             showNotification('Project data exported successfully', 'success');
         }
 
+        function isPlainObject(value) {
+            return typeof value === 'object' && value !== null && !Array.isArray(value);
+        }
+
+        function validateImportedProjectPayload(rawPayload, appInstance) {
+            if (!isPlainObject(rawPayload)) {
+                return { valid: false, errors: ['File does not contain a valid JSON object.'] };
+            }
+
+            const payloadProjectData = rawPayload.projectData && isPlainObject(rawPayload.projectData)
+                ? rawPayload.projectData
+                : rawPayload;
+
+            if (!isPlainObject(payloadProjectData)) {
+                return { valid: false, errors: ['JSON file must include a "projectData" object.'] };
+            }
+
+            const errors = [];
+            const info = payloadProjectData.info;
+            if (!isPlainObject(info)) {
+                errors.push('Missing project info section.');
+            } else if (!info.name || typeof info.name !== 'string' || info.name.trim() === '') {
+                errors.push('Project name is required.');
+            }
+
+            const categories = payloadProjectData.budgetCategories;
+            if (!Array.isArray(categories)) {
+                errors.push('"budgetCategories" must be an array.');
+            } else if (!categories.every(isPlainObject)) {
+                errors.push('Each budget category must be an object.');
+            }
+
+            const rawScenarios = payloadProjectData.scenarios;
+            if (!isPlainObject(rawScenarios) || Object.keys(rawScenarios).length === 0) {
+                errors.push('At least one scenario is required.');
+            }
+
+            const sanitizedScenarios = {};
+            if (isPlainObject(rawScenarios)) {
+                Object.entries(rawScenarios).forEach(([scenarioId, scenarioValue]) => {
+                    if (!isPlainObject(scenarioValue)) {
+                        errors.push(`Scenario "${scenarioId}" is not a valid object.`);
+                        return;
+                    }
+
+                    sanitizedScenarios[scenarioId] = {
+                        name: typeof scenarioValue.name === 'string' && scenarioValue.name.trim() ? scenarioValue.name : scenarioId,
+                        projections: isPlainObject(scenarioValue.projections) ? scenarioValue.projections : {},
+                        actuals: isPlainObject(scenarioValue.actuals) ? scenarioValue.actuals : {},
+                        isLocked: Boolean(scenarioValue.isLocked)
+                    };
+                });
+            }
+
+            const currentScenario = payloadProjectData.currentScenario;
+            if (typeof currentScenario !== 'string' || !currentScenario.trim()) {
+                errors.push('"currentScenario" must be a scenario id string.');
+            } else if (sanitizedScenarios && !sanitizedScenarios[currentScenario]) {
+                errors.push(`Scenario "${currentScenario}" is missing from the data.`);
+            }
+
+            if (errors.length > 0) {
+                return { valid: false, errors };
+            }
+
+            const appDefaults = (appInstance && typeof appInstance.getDefaultProjectData === 'function')
+                ? appInstance.getDefaultProjectData()
+                : {
+                    info: {},
+                    budgetCategories: [],
+                    scenarios: {},
+                    currentScenario: currentScenario
+                };
+
+            const sanitizedProjectData = {
+                ...payloadProjectData,
+                info: { ...(appDefaults.info || {}), ...info },
+                budgetCategories: categories.map(category => ({ ...category })),
+                scenarios: sanitizedScenarios,
+                currentScenario
+            };
+
+            return { valid: true, projectData: sanitizedProjectData };
+        }
+
         function importData(event) {
-            const file = event.target.files[0];
+            const input = event.target;
+            const file = input.files && input.files[0];
             if (!file) return;
 
+            const appInstance = window.app;
+            if (!appInstance) {
+                showNotification('Import failed: the application is still loading.', 'error');
+                input.value = '';
+                return;
+            }
+
+            if (!file.name.toLowerCase().endsWith('.json')) {
+                showNotification('Import failed: only Cashflow Pro JSON exports are supported.', 'error');
+                input.value = '';
+                return;
+            }
+
             const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    
-                    if (data.projectData) {
-                        if (confirm('This will replace all current project data. Are you sure?')) {
-                            const appInstance = window.app;
-                            if (appInstance) {
-                                appInstance.projectData = data.projectData;
-                                appInstance.debouncedSave();
-                                loadSettings();
-                                showNotification('Project data imported successfully', 'success');
-                            }
-                        }
-                    } else {
-                        showNotification('Invalid file format', 'error');
-                    }
-                } catch (error) {
-                    showNotification('Error reading file', 'error');
-                }
+
+            reader.onerror = () => {
+                showNotification(`Import failed: unable to read ${file.name}.`, 'error');
+                input.value = '';
             };
+
+            reader.onload = function(e) {
+                let parsed;
+                try {
+                    parsed = JSON.parse(e.target.result);
+                } catch (error) {
+                    console.error('Import failed: invalid JSON.', error);
+                    showNotification('Import failed: the selected file is not valid JSON.', 'error');
+                    input.value = '';
+                    return;
+                }
+
+                const validationResult = validateImportedProjectPayload(parsed, appInstance);
+                if (!validationResult.valid) {
+                    const errorMessage = validationResult.errors.join(' ');
+                    showNotification(`Import failed: ${errorMessage}`, 'error');
+                    input.value = '';
+                    return;
+                }
+
+                if (!confirm('This will replace all current project data. Are you sure?')) {
+                    input.value = '';
+                    return;
+                }
+
+                appInstance.projectData = validationResult.projectData;
+                appInstance.debouncedSave();
+                loadSettings();
+                showNotification('Project data imported successfully from JSON.', 'success');
+                input.value = '';
+            };
+
             reader.readAsText(file);
         }
 
