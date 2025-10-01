@@ -74,7 +74,7 @@ function getNotificationIcon(type) {
 // NEW: Button loading state utility
 function setButtonLoading(button, isLoading) {
     if (!button) return;
-    
+
     if (isLoading) {
         button.dataset.originalText = button.innerHTML;
         button.disabled = true;
@@ -84,6 +84,18 @@ function setButtonLoading(button, isLoading) {
         button.innerHTML = button.dataset.originalText || button.innerHTML;
     }
 }
+
+const APP_SYSTEM_SETTINGS_DEFAULTS = Object.freeze({
+    defaultMethod: 's-curve',
+    currencyFormat: 'USD',
+    numberFormat: '1,234.56',
+    dateFormat: 'MM/DD/YYYY',
+    defaultIntensity: '3',
+    autosaveInterval: '5',
+    enableNotifications: false,
+    darkMode: false,
+    enableAutosave: false
+});
 
 // ENHANCED: Budget category validation
 function validateBudgetCategory(data) {
@@ -152,7 +164,7 @@ function validateProjectInfo(data) {
 class CashflowApp {
     constructor() {
         console.log('CashflowApp: Initializing...');
-        
+
         this.currentProjectId = null;
         this.projects = {};
         this.projectData = this.getDefaultProjectData();
@@ -163,6 +175,12 @@ class CashflowApp {
         this.visualization = new VisualizationEngine(this);
         this._horizonCache = null;
         this._lastHintHorizon = null;
+
+        this.systemSettings = this.getSystemSettingsDefaults();
+        this.defaultDistributionMethod = this.systemSettings.defaultMethod;
+        this.defaultDistributionIntensity = this.systemSettings.defaultIntensity;
+
+        this.applySystemSettings(this.loadSystemSettingsFromStorage());
 
         this.waitForAuth();
     }
@@ -220,6 +238,77 @@ class CashflowApp {
             },
             currentScenario: 'baseline'
         };
+    }
+
+    getSystemSettingsDefaults() {
+        return { ...APP_SYSTEM_SETTINGS_DEFAULTS };
+    }
+
+    loadSystemSettingsFromStorage() {
+        const defaults = this.getSystemSettingsDefaults();
+        const rawValue = localStorage.getItem('cashflow_settings');
+
+        if (!rawValue) {
+            return defaults;
+        }
+
+        try {
+            const parsed = JSON.parse(rawValue);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                return { ...defaults, ...parsed };
+            }
+
+            console.warn('CashflowApp: Stored system settings are not an object. Using defaults.');
+            return defaults;
+        } catch (error) {
+            console.warn('CashflowApp: Failed to parse stored system settings. Using defaults.', error);
+            return defaults;
+        }
+    }
+
+    applySystemSettings(settings) {
+        const defaults = this.getSystemSettingsDefaults();
+        const merged = { ...defaults, ...(settings || {}) };
+
+        const validMethods = ['s-curve', 'straight-line', 'manual'];
+        if (!validMethods.includes(merged.defaultMethod)) {
+            merged.defaultMethod = defaults.defaultMethod;
+        }
+
+        const intensity = parseInt(merged.defaultIntensity, 10);
+        merged.defaultIntensity = Number.isFinite(intensity)
+            ? String(Math.min(Math.max(intensity, 1), 5))
+            : defaults.defaultIntensity;
+
+        const autosaveIntervalNumber = parseFloat(merged.autosaveInterval);
+        merged.autosaveInterval = Number.isFinite(autosaveIntervalNumber) && autosaveIntervalNumber > 0
+            ? String(merged.autosaveInterval)
+            : defaults.autosaveInterval;
+
+        merged.currencyFormat = merged.currencyFormat || defaults.currencyFormat;
+        merged.numberFormat = merged.numberFormat || defaults.numberFormat;
+        merged.dateFormat = merged.dateFormat || defaults.dateFormat;
+        merged.enableAutosave = !!merged.enableAutosave;
+        merged.enableNotifications = !!merged.enableNotifications;
+        merged.darkMode = !!merged.darkMode;
+
+        this.systemSettings = merged;
+        this.defaultDistributionMethod = merged.defaultMethod;
+        this.defaultDistributionIntensity = merged.defaultIntensity;
+
+        const bodyElement = document.body;
+
+        if (merged.darkMode) {
+            document.documentElement.classList.add('theme-dark');
+            bodyElement?.classList.add('theme-dark');
+        } else {
+            document.documentElement.classList.remove('theme-dark');
+            bodyElement?.classList.remove('theme-dark');
+        }
+
+        document.dispatchEvent(new CustomEvent('cashflow:system-settings-updated', {
+            detail: { settings: { ...this.systemSettings } }
+        }));
     }
 
     invalidateHorizon() {
@@ -1235,6 +1324,10 @@ class CashflowApp {
             ? `Use month numbers 0–${horizonMaxMonth}. Enter a higher month to extend the timeline automatically.`
             : 'Use month numbers starting at 0. Enter a higher month to extend the timeline automatically.';
 
+        const systemSettings = this.systemSettings || this.getSystemSettingsDefaults();
+        const defaultMethod = systemSettings.defaultMethod || 's-curve';
+        const defaultIntensity = systemSettings.defaultIntensity || '3';
+
         modal.innerHTML = `
             <div class="modal-overlay">
                 <div class="modal-content">
@@ -1285,20 +1378,20 @@ class CashflowApp {
                         </div>
                         <div class="form-group required">
                             <label>Distribution Method</label>
-                            <select name="distributionMethod" 
-                                    required 
+                            <select name="distributionMethod"
+                                    required
                                     onchange="toggleDistributionParams(this.value)"
                                     data-tooltip="How spending is distributed over time">
-                                <option value="s-curve">S-Curve Distribution</option>
-                                <option value="straight-line">Straight Line</option>
-                                <option value="manual">Manual Input</option>
+                                <option value="s-curve" ${defaultMethod === 's-curve' ? 'selected' : ''}>S-Curve Distribution</option>
+                                <option value="straight-line" ${defaultMethod === 'straight-line' ? 'selected' : ''}>Straight Line</option>
+                                <option value="manual" ${defaultMethod === 'manual' ? 'selected' : ''}>Manual Input</option>
                             </select>
                         </div>
-                        
+
                         <div id="distribution-params">
                             <div class="form-group">
                                 <label>S-Curve Intensity</label>
-                                <input type="range" name="intensity" min="1" max="5" value="3">
+                                <input type="range" name="intensity" min="1" max="5" value="${defaultIntensity}">
                                 <div class="flex justify-between text-sm text-gray-500 mt-1">
                                     <span>Flat</span>
                                     <span>Steep</span>
@@ -1330,10 +1423,10 @@ class CashflowApp {
             </div>
         `;
         modal.style.display = 'block';
-        
+
         // Add keyboard support
         document.addEventListener('keydown', this.handleModalKeyboard);
-        
+
         // Focus first input
         setTimeout(() => {
             const firstInput = modal.querySelector('input, select, textarea');
@@ -1349,27 +1442,42 @@ class CashflowApp {
             modal.querySelectorAll('[data-tooltip]').forEach(el => this.addTooltip(el));
         }, 100);
 
+        const distributionSelect = modal.querySelector('select[name="distributionMethod"]');
+        if (distributionSelect) {
+            distributionSelect.value = defaultMethod;
+            toggleDistributionParams(distributionSelect.value);
+        }
+
+        const intensityInput = modal.querySelector('input[name="intensity"]');
+        if (intensityInput) {
+            intensityInput.value = defaultIntensity;
+        }
+
         this.updateTimelineHints(modal);
     }
 
     handleAddBudgetForm(form) {
         const formData = new FormData(form);
-        
+
+        const systemSettings = this.systemSettings || this.getSystemSettingsDefaults();
+        const selectedMethod = formData.get('distributionMethod') || systemSettings.defaultMethod || 's-curve';
+        const selectedIntensity = formData.get('intensity') || systemSettings.defaultIntensity || '3';
+
         const distributionParams = {
-            intensity: parseInt(formData.get('intensity')) || 3,
+            intensity: parseInt(selectedIntensity) || parseInt(systemSettings.defaultIntensity, 10) || 3,
             startMonth: parseInt(formData.get('startMonth')) || 0,
             duration: parseInt(formData.get('duration')) || 12
         };
-        
+
         this.addBudgetCategory(
             formData.get('code'),
             formData.get('name'),
             formData.get('amount'),
             formData.get('costType'),
-            formData.get('distributionMethod'),
+            selectedMethod,
             distributionParams
         );
-        
+
         this.closeModal();
     }
 
