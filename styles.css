@@ -34,6 +34,49 @@
     --font-heading: 'Montserrat', 'Poppins', sans-serif;
 }
 
+:root.theme-dark {
+    --primary-color: #E5E7EB;
+    --secondary-color: #60A5FA;
+    --accent-color: #FBBF24;
+    --success-color: #34D399;
+    --warning-color: #FBBF24;
+    --error-color: #F87171;
+    --light-gray: #1F2937;
+    --medium-gray: #9CA3AF;
+    --dark-gray: #F3F4F6;
+}
+
+body.theme-dark,
+:root.theme-dark body {
+    background: #111827;
+    color: var(--dark-gray);
+}
+
+:root.theme-dark .panel,
+body.theme-dark .panel {
+    background: #1F2937;
+    color: var(--dark-gray);
+    border-color: rgba(148, 163, 184, 0.4);
+    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.5);
+}
+
+:root.theme-dark .header,
+body.theme-dark .header {
+    background: rgba(17, 24, 39, 0.9);
+    border-bottom-color: var(--secondary-color);
+}
+
+:root.theme-dark .nav-tab,
+body.theme-dark .nav-tab {
+    color: var(--dark-gray);
+}
+
+:root.theme-dark .nav-tab.active,
+body.theme-dark .nav-tab.active {
+    background: var(--secondary-color);
+    color: #0B1120;
+}
+
 /* ============================================================================
    BASE & LAYOUT
    ============================================================================ */

@@ -688,31 +688,48 @@
         // ============================================================================
         let autosaveTimerId = null;
 
-        function getStoredSystemSettings() {
-            const defaultSettings = {
-                defaultMethod: 's-curve',
-                currencyFormat: 'USD',
-                numberFormat: '1,234.56',
-                dateFormat: 'MM/DD/YYYY',
-                defaultIntensity: '3',
-                autosaveInterval: '5',
-                enableNotifications: false,
-                darkMode: false,
-                enableAutosave: false
-            };
+        const SYSTEM_SETTINGS_DEFAULTS = Object.freeze({
+            defaultMethod: 's-curve',
+            currencyFormat: 'USD',
+            numberFormat: '1,234.56',
+            dateFormat: 'MM/DD/YYYY',
+            defaultIntensity: '3',
+            autosaveInterval: '5',
+            enableNotifications: false,
+            darkMode: false,
+            enableAutosave: false
+        });
+
+        function cloneSystemDefaults() {
+            return { ...SYSTEM_SETTINGS_DEFAULTS };
+        }
+
+        function parseStoredSystemSettings() {
+            const defaults = cloneSystemDefaults();
+            const rawValue = localStorage.getItem('cashflow_settings');
+
+            if (!rawValue) {
+                return { settings: defaults, rawValue: null, error: null };
+            }
 
             try {
-                const stored = localStorage.getItem('cashflow_settings');
-                if (!stored) {
-                    return { ...defaultSettings };
+                const parsed = JSON.parse(rawValue);
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    return { settings: { ...defaults, ...parsed }, rawValue, error: null };
                 }
 
-                const parsed = JSON.parse(stored);
-                return { ...defaultSettings, ...parsed };
+                return {
+                    settings: defaults,
+                    rawValue,
+                    error: new Error('Stored settings are not an object')
+                };
             } catch (error) {
-                console.warn('Unable to parse stored settings, falling back to defaults.', error);
-                return { ...defaultSettings };
+                return { settings: defaults, rawValue, error };
             }
+        }
+
+        function getStoredSystemSettings() {
+            return parseStoredSystemSettings().settings;
         }
 
         function updateAutoSaveTimer() {
@@ -721,7 +738,9 @@
                 autosaveTimerId = null;
             }
 
-            const settings = getStoredSystemSettings();
+            const settings = (window.app && window.app.systemSettings)
+                ? window.app.systemSettings
+                : getStoredSystemSettings();
 
             if (!settings.enableAutosave) {
                 return;
@@ -801,7 +820,7 @@
             document.getElementById('project-location').value = projectInfo.location || '';
             document.getElementById('project-manager').value = projectInfo.manager || '';
             document.getElementById('project-description').value = projectInfo.description || '';
-            
+
             const startDateInput = document.getElementById('start-date');
             const endDateInput = document.getElementById('end-date');
 
@@ -840,7 +859,41 @@
                 logoPreview.classList.add('has-logo');
             }
 
-            const systemSettings = getStoredSystemSettings();
+            const { settings: parsedSettings, error: settingsError } = parseStoredSystemSettings();
+            const defaults = typeof appInstance.getSystemSettingsDefaults === 'function'
+                ? appInstance.getSystemSettingsDefaults()
+                : cloneSystemDefaults();
+
+            const normalizedSettings = { ...defaults, ...parsedSettings };
+
+            const validMethods = ['s-curve', 'straight-line', 'manual'];
+            if (!validMethods.includes(normalizedSettings.defaultMethod)) {
+                normalizedSettings.defaultMethod = defaults.defaultMethod;
+            }
+
+            const intensityValue = parseInt(normalizedSettings.defaultIntensity, 10);
+            normalizedSettings.defaultIntensity = Number.isFinite(intensityValue)
+                ? String(Math.min(Math.max(intensityValue, 1), 5))
+                : defaults.defaultIntensity;
+
+            const autosaveIntervalNumber = parseFloat(normalizedSettings.autosaveInterval);
+            normalizedSettings.autosaveInterval = Number.isFinite(autosaveIntervalNumber) && autosaveIntervalNumber > 0
+                ? String(normalizedSettings.autosaveInterval)
+                : defaults.autosaveInterval;
+
+            normalizedSettings.currencyFormat = normalizedSettings.currencyFormat || defaults.currencyFormat;
+            normalizedSettings.numberFormat = normalizedSettings.numberFormat || defaults.numberFormat;
+            normalizedSettings.dateFormat = normalizedSettings.dateFormat || defaults.dateFormat;
+            normalizedSettings.enableAutosave = !!normalizedSettings.enableAutosave;
+            normalizedSettings.enableNotifications = !!normalizedSettings.enableNotifications;
+            normalizedSettings.darkMode = !!normalizedSettings.darkMode;
+
+            if (settingsError) {
+                console.warn('Unable to parse stored settings, falling back to defaults.', settingsError);
+                if (typeof showNotification === 'function') {
+                    showNotification('Stored system settings were corrupted. Defaults restored.', 'warning');
+                }
+            }
 
             const defaultMethodInput = document.getElementById('default-method');
             const currencyFormatInput = document.getElementById('currency-format');
@@ -852,15 +905,28 @@
             const notificationsInput = document.getElementById('enable-notifications');
             const darkModeInput = document.getElementById('dark-mode');
 
-            if (defaultMethodInput) defaultMethodInput.value = systemSettings.defaultMethod;
-            if (currencyFormatInput) currencyFormatInput.value = systemSettings.currencyFormat;
-            if (numberFormatInput) numberFormatInput.value = systemSettings.numberFormat;
-            if (dateFormatInput) dateFormatInput.value = systemSettings.dateFormat;
-            if (intensityInput) intensityInput.value = systemSettings.defaultIntensity;
-            if (autosaveIntervalInput) autosaveIntervalInput.value = systemSettings.autosaveInterval;
-            if (enableAutosaveInput) enableAutosaveInput.checked = !!systemSettings.enableAutosave;
-            if (notificationsInput) notificationsInput.checked = !!systemSettings.enableNotifications;
-            if (darkModeInput) darkModeInput.checked = !!systemSettings.darkMode;
+            if (defaultMethodInput) defaultMethodInput.value = normalizedSettings.defaultMethod;
+            if (currencyFormatInput) currencyFormatInput.value = normalizedSettings.currencyFormat;
+            if (numberFormatInput) numberFormatInput.value = normalizedSettings.numberFormat;
+            if (dateFormatInput) dateFormatInput.value = normalizedSettings.dateFormat;
+            if (intensityInput) intensityInput.value = normalizedSettings.defaultIntensity;
+            if (autosaveIntervalInput) autosaveIntervalInput.value = normalizedSettings.autosaveInterval;
+            if (enableAutosaveInput) enableAutosaveInput.checked = normalizedSettings.enableAutosave;
+            if (notificationsInput) notificationsInput.checked = normalizedSettings.enableNotifications;
+            if (darkModeInput) darkModeInput.checked = normalizedSettings.darkMode;
+
+            if (typeof appInstance.applySystemSettings === 'function') {
+                appInstance.applySystemSettings(normalizedSettings);
+            } else {
+                appInstance.systemSettings = normalizedSettings;
+                if (normalizedSettings.darkMode) {
+                    document.documentElement.classList.add('theme-dark');
+                    document.body.classList.add('theme-dark');
+                } else {
+                    document.documentElement.classList.remove('theme-dark');
+                    document.body.classList.remove('theme-dark');
+                }
+            }
         }
 
         function saveProjectInfo() {
@@ -950,6 +1016,9 @@
             };
 
             localStorage.setItem('cashflow_settings', JSON.stringify(settings));
+            if (typeof window.app.applySystemSettings === 'function') {
+                window.app.applySystemSettings(settings);
+            }
             updateAutoSaveTimer();
             showNotification('System settings saved successfully', 'success');
         }
