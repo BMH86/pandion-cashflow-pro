@@ -617,7 +617,13 @@
                             <label>Auto-save Interval (minutes)</label>
                             <input type="number" id="autosave-interval" min="1" max="60" value="5">
                         </div>
-                        
+
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="enable-autosave"> Enable auto-save
+                            </label>
+                        </div>
+
                         <div class="form-group">
                             <label>
                                 <input type="checkbox" id="enable-notifications"> Enable notifications
@@ -680,6 +686,62 @@
         // ============================================================================
         // FIXED: PAGE INITIALIZATION WITH AUTH CHECK
         // ============================================================================
+        let autosaveTimerId = null;
+
+        function getStoredSystemSettings() {
+            const defaultSettings = {
+                defaultMethod: 's-curve',
+                currencyFormat: 'USD',
+                numberFormat: '1,234.56',
+                dateFormat: 'MM/DD/YYYY',
+                defaultIntensity: '3',
+                autosaveInterval: '5',
+                enableNotifications: false,
+                darkMode: false,
+                enableAutosave: false
+            };
+
+            try {
+                const stored = localStorage.getItem('cashflow_settings');
+                if (!stored) {
+                    return { ...defaultSettings };
+                }
+
+                const parsed = JSON.parse(stored);
+                return { ...defaultSettings, ...parsed };
+            } catch (error) {
+                console.warn('Unable to parse stored settings, falling back to defaults.', error);
+                return { ...defaultSettings };
+            }
+        }
+
+        function updateAutoSaveTimer() {
+            if (autosaveTimerId) {
+                clearInterval(autosaveTimerId);
+                autosaveTimerId = null;
+            }
+
+            const settings = getStoredSystemSettings();
+
+            if (!settings.enableAutosave) {
+                return;
+            }
+
+            const intervalMinutes = parseFloat(settings.autosaveInterval);
+            if (!Number.isFinite(intervalMinutes) || intervalMinutes <= 0) {
+                return;
+            }
+
+            const intervalMs = Math.max(intervalMinutes, 1) * 60 * 1000;
+
+            autosaveTimerId = setInterval(() => {
+                const appInstance = window.app;
+                if (appInstance) {
+                    appInstance.debouncedSave();
+                }
+            }, intervalMs);
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // Check authentication first
             firebase.auth().onAuthStateChanged((user) => {
@@ -711,9 +773,10 @@
 
             function initializePage() {
                 console.log('Settings page initialized with app');
-                
+
                 loadSettings();
-                
+                updateAutoSaveTimer();
+
                 if (typeof anime !== 'undefined') {
                     anime({
                         targets: '.slide-in',
@@ -732,7 +795,7 @@
             if (!appInstance) return;
 
             const projectInfo = appInstance.projectData.info;
-            
+
             document.getElementById('project-name').value = projectInfo.name || '';
             document.getElementById('client-name').value = projectInfo.client || '';
             document.getElementById('project-location').value = projectInfo.location || '';
@@ -776,6 +839,28 @@
                 logoPreview.innerHTML = `<img src="${projectInfo.logo}" alt="Company Logo">`;
                 logoPreview.classList.add('has-logo');
             }
+
+            const systemSettings = getStoredSystemSettings();
+
+            const defaultMethodInput = document.getElementById('default-method');
+            const currencyFormatInput = document.getElementById('currency-format');
+            const numberFormatInput = document.getElementById('number-format');
+            const dateFormatInput = document.getElementById('date-format');
+            const intensityInput = document.getElementById('default-intensity');
+            const autosaveIntervalInput = document.getElementById('autosave-interval');
+            const enableAutosaveInput = document.getElementById('enable-autosave');
+            const notificationsInput = document.getElementById('enable-notifications');
+            const darkModeInput = document.getElementById('dark-mode');
+
+            if (defaultMethodInput) defaultMethodInput.value = systemSettings.defaultMethod;
+            if (currencyFormatInput) currencyFormatInput.value = systemSettings.currencyFormat;
+            if (numberFormatInput) numberFormatInput.value = systemSettings.numberFormat;
+            if (dateFormatInput) dateFormatInput.value = systemSettings.dateFormat;
+            if (intensityInput) intensityInput.value = systemSettings.defaultIntensity;
+            if (autosaveIntervalInput) autosaveIntervalInput.value = systemSettings.autosaveInterval;
+            if (enableAutosaveInput) enableAutosaveInput.checked = !!systemSettings.enableAutosave;
+            if (notificationsInput) notificationsInput.checked = !!systemSettings.enableNotifications;
+            if (darkModeInput) darkModeInput.checked = !!systemSettings.darkMode;
         }
 
         function saveProjectInfo() {
@@ -859,11 +944,13 @@
                 dateFormat: document.getElementById('date-format').value,
                 defaultIntensity: document.getElementById('default-intensity').value,
                 autosaveInterval: document.getElementById('autosave-interval').value,
+                enableAutosave: document.getElementById('enable-autosave').checked,
                 enableNotifications: document.getElementById('enable-notifications').checked,
                 darkMode: document.getElementById('dark-mode').checked
             };
 
             localStorage.setItem('cashflow_settings', JSON.stringify(settings));
+            updateAutoSaveTimer();
             showNotification('System settings saved successfully', 'success');
         }
 
@@ -981,12 +1068,7 @@
             }, 3000);
         }
 
-        setInterval(() => {
-            const appInstance = window.app;
-            if (appInstance && document.getElementById('enable-notifications')?.checked) {
-                appInstance.debouncedSave();
-            }
-        }, 300000);
+        updateAutoSaveTimer();
     </script>
 </body>
 </html>
