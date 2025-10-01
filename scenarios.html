@@ -715,9 +715,12 @@
             scenario.name = document.getElementById('scenario-name').value;
             scenario.description = document.getElementById('scenario-description').value;
             scenario.isLocked = document.getElementById('scenario-locked').checked;
+            scenario.adjustments = collectAdjustmentValues();
 
             appInstance.debouncedSave();
             refreshScenarioList();
+            updateScenarioChart();
+            updateComparison();
 
             showNotification('Scenario saved successfully', 'success');
         }
@@ -756,6 +759,7 @@
 
             // Update comparison selector
             updateComparisonSelector();
+            updateComparison();
         }
 
         function loadBudgetAdjustments() {
@@ -765,20 +769,76 @@
 
             container.innerHTML = '';
 
+            const scenario = appInstance.projectData.scenarios[currentScenarioId];
+            if (!scenario) return;
+
+            const adjustments = scenario.adjustments || {};
+
             appInstance.projectData.budgetCategories.forEach(category => {
                 const adjustmentItem = document.createElement('div');
                 adjustmentItem.className = 'adjustment-item';
+                const baseAmount = parseFloat(category.amount) || 0;
+                const adjustmentValue = adjustments.hasOwnProperty(category.id)
+                    ? adjustments[category.id]
+                    : baseAmount;
                 adjustmentItem.innerHTML = `
                     <div class="category-name">${category.name}</div>
-                    <input type="number" 
-                           class="adjustment-input" 
+                    <input type="number"
+                           class="adjustment-input"
                            data-category-id="${category.id}"
-                           value="${category.amount}"
+                           data-base-amount="${baseAmount}"
+                           value="${adjustmentValue}"
                            step="0.01">
                     <span>$${category.amount.toLocaleString()}</span>
                 `;
                 container.appendChild(adjustmentItem);
+
+                const input = adjustmentItem.querySelector('.adjustment-input');
+                input.addEventListener('input', () => handleAdjustmentChange(input));
+                input.addEventListener('change', () => handleAdjustmentChange(input));
             });
+        }
+
+        function collectAdjustmentValues() {
+            const adjustments = {};
+            document.querySelectorAll('.adjustment-input').forEach(input => {
+                const categoryId = input.dataset.categoryId;
+                if (!categoryId) return;
+
+                const baseAmount = parseFloat(input.dataset.baseAmount);
+                const value = parseFloat(input.value);
+                const finalValue = !isNaN(value)
+                    ? value
+                    : (!isNaN(baseAmount) ? baseAmount : 0);
+
+                adjustments[categoryId] = finalValue;
+            });
+            return adjustments;
+        }
+
+        function handleAdjustmentChange(inputElement) {
+            const appInstance = window.app;
+            if (!appInstance) return;
+
+            const scenario = appInstance.projectData.scenarios[currentScenarioId];
+            if (!scenario) return;
+
+            const adjustments = scenario.adjustments || {};
+            const categoryId = inputElement.dataset.categoryId;
+            if (!categoryId) return;
+
+            const baseAmount = parseFloat(inputElement.dataset.baseAmount);
+            const value = parseFloat(inputElement.value);
+            const finalValue = !isNaN(value)
+                ? value
+                : (!isNaN(baseAmount) ? baseAmount : 0);
+
+            adjustments[categoryId] = finalValue;
+            scenario.adjustments = adjustments;
+
+            appInstance.debouncedSave();
+            updateScenarioChart();
+            updateComparison();
         }
 
         function refreshScenarioList() {
