@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="styles.css">
     <style>
         :root {
@@ -1065,18 +1066,48 @@
 
         function exportChart(format) {
             if (!mainChart) return;
-            
-            const url = mainChart.getDataURL({
-                type: format === 'pdf' ? 'png' : format,
+
+            const isPdf = format === 'pdf';
+            const dataUrl = mainChart.getDataURL({
+                type: isPdf ? 'png' : format,
                 pixelRatio: 2,
                 backgroundColor: '#fff'
             });
-            
+
+            if (isPdf) {
+                if (!window.jspdf || !window.jspdf.jsPDF) {
+                    showNotification('PDF export is currently unavailable', 'error');
+                    return;
+                }
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('landscape', 'pt', 'a4');
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const imgProps = pdf.getImageProperties(dataUrl);
+                let pdfWidth = pageWidth;
+                let pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+                if (pdfHeight > pageHeight) {
+                    pdfHeight = pageHeight;
+                    pdfWidth = (imgProps.width * pdfHeight) / imgProps.height;
+                }
+
+                const x = (pageWidth - pdfWidth) / 2;
+                const y = (pageHeight - pdfHeight) / 2;
+
+                pdf.addImage(dataUrl, 'PNG', x, y, pdfWidth, pdfHeight);
+                pdf.save(`cashflow-chart-${new Date().toISOString().split('T')[0]}.pdf`);
+
+                showNotification('Chart exported as PDF', 'success');
+                return;
+            }
+
             const link = document.createElement('a');
-            link.href = url;
+            link.href = dataUrl;
             link.download = `cashflow-chart-${new Date().toISOString().split('T')[0]}.${format}`;
             link.click();
-            
+
             showNotification(`Chart exported as ${format.toUpperCase()}`, 'success');
         }
 
